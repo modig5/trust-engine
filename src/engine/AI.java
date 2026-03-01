@@ -112,6 +112,13 @@ public class AI {
             }
         }
 
+        System.out.println(board.repetitionMap.get(board.FEN));
+
+        if (board.repetitionMap.get(board.FEN) >= 3) {
+            System.out.println("threefold repetition trust");
+            return 0; // Draw by repetition
+        }
+
         for (Move move : moves) {
             Move undoInfo = board.makeMove(move, true);
             int eval = -miniMax(depth - 1, -beta, -alpha);
@@ -229,7 +236,11 @@ public class AI {
     }
 
     public void makeAIMove() {
-        System.out.println("AI makeAIMove() called - starting to think...");
+        //System.out.println("AI makeAIMove() called - starting to think...");
+
+        if (board.repetitionMap.get(board.FEN) >= 3) {
+            return;
+        }
 
         ArrayList<Move> validMoves = getAllValidMoves();
 
@@ -250,7 +261,7 @@ public class AI {
             board.undoMove(undoInfo);
         }
         System.out.println(bestScore);
-        System.out.println("AI finished thinking");
+        //System.out.println("AI finished thinking");
 
         if (bestMove != null) {
             board.makeMove(bestMove, false);

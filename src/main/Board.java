@@ -527,8 +527,13 @@ public class Board extends JPanel {
             }
         }
 
-        // To check for valid moves
-        if (selectedPiece != null)
+        // Highlight selected piece and valid moves
+        if (selectedPiece != null) {
+            // Selected piece's square
+            graphics.setColor(new Color(246, 246, 105, 180));
+            graphics.fillRect(selectedPiece.col * SQUARE_SIZE, selectedPiece.row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+
+            // Valid destination squares
             for (int i = 0; i < MAX_ROWS; i++) {
                 for (int j = 0; j < MAX_COLS; j++) {
                     if (isValidMove(new Move(this, selectedPiece, j, i))) {
@@ -537,6 +542,7 @@ public class Board extends JPanel {
                     }
                 }
             }
+        }
 
         for (Piece piece : pieceList) {
             piece.paint(graphics);
