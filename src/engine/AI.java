@@ -112,8 +112,6 @@ public class AI {
             }
         }
 
-        System.out.println(board.repetitionMap.get(board.FEN));
-
         if (board.repetitionMap.get(board.FEN) >= 3) {
             System.out.println("threefold repetition trust");
             return 0; // Draw by repetition
@@ -260,7 +258,7 @@ public class AI {
             }
             board.undoMove(undoInfo);
         }
-        System.out.println(bestScore);
+        //System.out.println(bestScore);
         //System.out.println("AI finished thinking");
 
         if (bestMove != null) {
