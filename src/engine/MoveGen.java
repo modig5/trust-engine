@@ -101,9 +101,10 @@ public class MoveGen {
         int index = BitBoard.SquareToIndex(piece.row, piece.col);
 
         for (int dir : directions) {
+            int prev = index;
             int current = index + dir;
             while (current >= 0 && current < 64) {
-                if (!BitBoard.isValidDirection(index, current, dir))
+                if (!BitBoard.isValidDirection(prev, current, dir))
                     break;
 
                 int nr = current / 8;
@@ -118,6 +119,7 @@ public class MoveGen {
                         addMoveIfValid(piece, nc, nr, validMoves);
                     break;
                 }
+                prev = current;
                 current += dir;
             }
         }
