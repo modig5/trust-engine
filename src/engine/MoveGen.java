@@ -73,6 +73,14 @@ public class MoveGen {
     public void generateKingMoves(Piece piece, int index, ArrayList<Move> validMoves) {
         long attacks = AttackTables.calculateKingAttacks(index);
         generateMovesFromBitBoard(piece, attacks, validMoves, false);
+        
+        // Add castling moves
+        if (board.scanner.canCastleKingSide(piece.color)) {
+            addMoveIfValid(piece, 6, piece.row, validMoves);
+        }
+        if (board.scanner.canCastleQueenSide(piece.color)) {
+            addMoveIfValid(piece, 2, piece.row, validMoves);
+        }
     }
 
     public void generateMovesFromBitBoard(Piece piece, long attacks, ArrayList<Move> validMoves, boolean capture) {

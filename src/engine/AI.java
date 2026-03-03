@@ -91,6 +91,17 @@ public class AI {
             {20, 50, 0, 0, 0, 0, 50, 20}
     };
 
+    private static final int[][] FLIPPED_KING_TABLE = {
+            {20, 50, 0, 0, 0, 0, 50, 20},
+            {20, 20, 0, 0, 0, 0, 20, 20},
+            {-10, -20, -20, -20, -20, -20, -20, -10},
+            {-20, -30, -30, -40, -40, -30, -30, -20},
+            {-30, -40, -40, -50, -50, -40, -40, -30},
+            {-30, -40, -40, -50, -50, -40, -40, -30},
+            {-30, -40, -40, -50, -50, -40, -40, -30},
+            {-30, -40, -40, -50, -50, -40, -40, -30}
+    };
+
     public AI(Board board) {
         this.board = board;
         this.moveGenerator = new MoveGen(board);
@@ -199,7 +210,7 @@ public class AI {
             case "Bishop" -> BISHOP_TABLE[row][col];
             case "Rook" -> ROOK_TABLE[row][col];
             case "Queen" -> QUEEN_TABLE[row][col];
-            case "King" -> KING_TABLE[row][col];
+            case "King" -> FLIPPED_KING_TABLE[row][col];
             default -> 0;
         };
     }
@@ -234,8 +245,6 @@ public class AI {
     }
 
     public void makeAIMove() {
-        //System.out.println("AI makeAIMove() called - starting to think...");
-
         if (board.repetitionMap.get(board.FEN) >= 3) {
             return;
         }
@@ -258,6 +267,7 @@ public class AI {
             }
             board.undoMove(undoInfo);
         }
+
         //System.out.println(bestScore);
         //System.out.println("AI finished thinking");
 

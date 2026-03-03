@@ -53,7 +53,7 @@ public class Scanner {
         if (isInCheck(king.col, king.row, color)) return false;
 
         Piece rook = board.getPiece(0,king.row);
-        if (rook == null || !rook.name.equals("Rook") || !(rook.isFirstMove)) return false;
+        if (rook == null || !rook.name.equals("Rook") || !(rook.isFirstMove) || rook.color != color) return false;
 
         for (int col = 1; col < king.col; col++) {
             if (board.getPiece(col, king.row) != null) return false;
@@ -70,7 +70,7 @@ public class Scanner {
         if (isInCheck(king.col, king.row, color)) return false;
 
         Piece rook = board.getPiece(7,king.row);
-        if (rook == null || !rook.name.equals("Rook") || !(rook.isFirstMove)) return false;
+        if (rook == null || !rook.name.equals("Rook") || !(rook.isFirstMove) || rook.color != color) return false;
 
         for (int col = 5; col < 7; col++) {
             if (board.getPiece(col, king.row) != null) return false;
