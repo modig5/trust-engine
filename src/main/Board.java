@@ -57,6 +57,7 @@ public class Board extends JPanel {
         // Parse castling rights (field 3) and update piece isFirstMove flags
         String castlingRights = parts.length > 2 ? parts[2] : "-";
         applyCastlingRights(castlingRights);
+        applyPawnFirstMoveFlags();
 
         // Parse en passant target (field 4)
         String enPassantTarget = parts.length > 3 ? parts[3] : "-";
@@ -472,6 +473,19 @@ public class Board extends JPanel {
         }
     }
 
+    // If pawns are on a different row set firstMove to false
+    private void applyPawnFirstMoveFlags() {
+        for (Piece piece : pieceList) {
+            if (piece.name.equals("Pawn")) {
+                // White pawns start at row 6 (rank 2), black pawns start at row 1 (rank 7)
+                if (piece.color == 0) {
+                    piece.isFirstMove = (piece.row == 6);
+                } else {
+                    piece.isFirstMove = (piece.row == 1);
+                }
+            }
+        }
+    }
 
     // Apply en passant target square from FEN by configuring the scanner
     private void applyEnPassantTarget(String enPassantTarget) {

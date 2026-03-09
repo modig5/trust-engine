@@ -95,8 +95,12 @@ public class MoveGen {
             if (capture) {
                 if (target != null && target.color != piece.color)
                     addMoveIfValid(piece, nc, nr, validMoves);
-                else if (board.scanner.enPassantEnable && nc == board.scanner.enPassantCol)
-                    addMoveIfValid(piece, nc, nr , validMoves);
+                // En passant: check if target square is the capture square (one row past the enemy pawn)
+                else if (board.scanner.enPassantEnable && nc == board.scanner.enPassantCol) {
+                    int enPassantCaptureRow = (piece.color == 0) ? board.scanner.enPassantRow - 1 : board.scanner.enPassantRow + 1;
+                    if (nr == enPassantCaptureRow)
+                        addMoveIfValid(piece, nc, nr, validMoves);
+                }
             } else {
                 // For knights/kings - empty squares OR captures
                 if (target == null || target.color != piece.color)
