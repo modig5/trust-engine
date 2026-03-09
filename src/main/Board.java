@@ -92,8 +92,13 @@ public class Board extends JPanel {
     public void promotion(Move move, boolean simulate) {
         pieceList.remove(move.piece);
 
-        // simple popup choice
-        if (simulate || isAIThinking) {
+        // If promotionPiece is specified in the move, use it
+        if (move.promotionPiece != null) {
+            Piece promotedPiece = createPromotedPieceByName(move.promotionPiece, move.newCol, move.newRow, move.piece.color);
+            pieceList.add(promotedPiece);
+        }
+        // Otherwise just promote to queen
+        else if (simulate || isAIThinking) {
             Piece promotedPiece = new Queen(this, move.newCol, move.newRow, move.piece.color);
             pieceList.add(promotedPiece);
         }
@@ -115,11 +120,22 @@ public class Board extends JPanel {
     }
 
 
+    // For when choosing a piece (interactive)
     public Piece createPromotedPiece(int choice, int col, int row, int color) {
         return switch (choice) {
             case 1 -> new Rook(this, col, row, color);
             case 2 -> new Bishop(this, col, row, color);
             case 3 -> new Knight(this, col, row, color);
+            default -> new Queen(this, col, row, color);
+        };
+    }
+
+    // For when engine decides
+    public Piece createPromotedPieceByName(String pieceName, int col, int row, int color) {
+        return switch (pieceName) {
+            case "Rook" -> new Rook(this, col, row, color);
+            case "Bishop" -> new Bishop(this, col, row, color);
+            case "Knight" -> new Knight(this, col, row, color);
             default -> new Queen(this, col, row, color);
         };
     }

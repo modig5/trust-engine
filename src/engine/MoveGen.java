@@ -138,11 +138,33 @@ public class MoveGen {
     }
 
     private void addMoveIfValid(Piece piece, int col, int row, ArrayList<Move> validMoves) {
+        // Check if this is a pawn promotion
+        if (piece.name.equals("Pawn")) {
+            boolean isPromotion = (piece.color == 0 && row == 0) || (piece.color == 1 && row == 7);
+            if (isPromotion) {
+                addPromotionMoves(piece, col, row, validMoves);
+                return;
+            }
+        }
+        
+        // Normal move (non-promotion)
         Move move = new Move(board, piece, col, row);
 
         if (board.scanner.isValidMove(move)) {
             validMoves.add(move);
         }
+    }
+
+    // Generate 4 moves for each promotion piece
+    private void addPromotionMoves(Piece piece, int col, int row, ArrayList<Move> validMoves) {
+        String[] promotionPieces = {"Queen", "Rook", "Bishop", "Knight"};
+        for (String promotionPiece : promotionPieces) {
+            Move move = new Move(board, piece, col, row, promotionPiece);
+            if (board.scanner.isValidMove(move)) {
+                validMoves.add(move);
+            }
+        }
+        return;
     }
 
     private String debugWhyMoveInvalid(Move move) {

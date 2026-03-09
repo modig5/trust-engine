@@ -15,11 +15,16 @@ public class Move {
     public boolean wasEnPassant;
     public boolean wasPromotion;
     public Piece promotedFrom;
+    public String promotionPiece; // "Queen", "Rook", "Bishop", or "Knight"
 
     public Piece piece;
     public Piece capture;
 
     public Move(Board board, Piece piece, int newCol, int newRow) {
+        this(board, piece, newCol, newRow, null);
+    }
+
+    public Move(Board board, Piece piece, int newCol, int newRow, String promotionPiece) {
         col = piece.col;
         row = piece.row;
         this.newCol = newCol;
@@ -27,6 +32,7 @@ public class Move {
 
         this.piece = piece;
         this.capture = board.getPiece(newCol, newRow);
+        this.promotionPiece = promotionPiece;
     }
 
 
