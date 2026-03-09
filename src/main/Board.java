@@ -234,8 +234,23 @@ public class Board extends JPanel {
             undoInfo.wasPromotion = true;
         }
 
-        if (move.piece.name.equals("King") && Math.abs(move.col - move.newCol) == 2)
+        if (move.piece.name.equals("King") && Math.abs(move.col - move.newCol) == 2) {
             undoInfo.wasCastling = true;
+            // Save rook's isFirstMove state for castling undo
+            if (move.newCol == 2) {
+                // Queenside castling - rook at a-file
+                Piece rook = getPiece(0, move.row);
+                if (rook != null) {
+                    undoInfo.rookFirstMove = rook.isFirstMove;
+                }
+            } else {
+                // Kingside castling - rook at h-file
+                Piece rook = getPiece(7, move.row);
+                if (rook != null) {
+                    undoInfo.rookFirstMove = rook.isFirstMove;
+                }
+            }
+        }
 
         return undoInfo;
     }
@@ -287,24 +302,27 @@ public class Board extends JPanel {
     public void undoCastling(Move move) {
         // Move back rook to corresponding side
         if (move.newCol == 2) {
-            Piece rook = getPiece(3,move.row);
+            // Queenside castling - move rook back to a-file
+            Piece rook = getPiece(3, move.row);
             if (rook != null) {
                 rook.col = 0;
+                rook.row = move.row;
                 rook.x = rook.col * SQUARE_SIZE;
                 rook.y = rook.row * SQUARE_SIZE;
-                rook.isFirstMove = true;
+                rook.isFirstMove = move.rookFirstMove;
             }
         }
         else {
-            Piece rook = getPiece(5,move.row);
+            // Kingside castling - move rook back to h-file
+            Piece rook = getPiece(5, move.row);
             if (rook != null) {
                 rook.col = 7;
+                rook.row = move.row;
                 rook.x = rook.col * SQUARE_SIZE;
                 rook.y = rook.row * SQUARE_SIZE;
-                rook.isFirstMove = true;
+                rook.isFirstMove = move.rookFirstMove;
             }
         }
-
     }
 
 

@@ -16,6 +16,9 @@ public class Move {
     public boolean wasPromotion;
     public Piece promotedFrom;
     public String promotionPiece; // "Queen", "Rook", "Bishop", or "Knight"
+    
+    // Save rookFirstMove so we can restore it when we undo castling
+    public boolean rookFirstMove;
 
     public Piece piece;
     public Piece capture;
