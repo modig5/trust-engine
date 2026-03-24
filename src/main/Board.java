@@ -14,12 +14,6 @@ public class Board extends JPanel {
     public static final int MAX_ROWS = 8;
     public static final int MAX_COLS = 8;
 
-    public String CLASSIC = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
-    public String FENTEST = "4k3/8/8/8/5p2/8/4N3/K7";
-    public String FENPROMOTION = "4k3/8/8/8/5p2/8/8/K7";
-    public String endGame =  "R7/8/8/8/8/2K5/3p2r1/4k3";
-    public String repetition = "8/8/8/8/8/2N5/4K3/3k4";
-
     public String FEN = "";
 
     public static ArrayList<Piece> pieceList = new ArrayList<>();
@@ -37,11 +31,9 @@ public class Board extends JPanel {
     public Map<String, Integer> repetitionMap = new HashMap<>();
     public boolean threefold = false;
 
-
     public Board() {
         this("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     }
-
 
     public Board(String fullFEN) {
         String[] parts = fullFEN.split(" ");
@@ -74,7 +66,6 @@ public class Board extends JPanel {
         this.addMouseMotionListener(input);
     }
 
-
     public Piece getPiece(int col, int row) {
        for (Piece piece : pieceList) {
            if (piece.col == col && piece.row == row) {
@@ -83,11 +74,9 @@ public class Board extends JPanel {
        } return null;
     }
 
-
     public void capture(Move move) {
         pieceList.remove(move.capture);
     }
-
 
     public void promotion(Move move, boolean simulate) {
         pieceList.remove(move.piece);
@@ -119,7 +108,6 @@ public class Board extends JPanel {
         }
     }
 
-
     // For when choosing a piece (interactive)
     public Piece createPromotedPiece(int choice, int col, int row, int color) {
         return switch (choice) {
@@ -139,7 +127,6 @@ public class Board extends JPanel {
             default -> new Queen(this, col, row, color);
         };
     }
-
 
     public void castling(Move move) {
         if (move.newCol == 2) {
@@ -163,7 +150,6 @@ public class Board extends JPanel {
         }
     }
 
-
     public void enPassant(Move move) {
         int squareDiff;
         if (move.piece.color == 0)
@@ -176,11 +162,9 @@ public class Board extends JPanel {
         pieceList.remove(pawn);
     }
 
-
     public void firstMove(Piece piece) {
         piece.isFirstMove = false;
     }
-
 
     public Move makeMove(Move move, boolean simulate) {
         if (threefold)
@@ -325,7 +309,6 @@ public class Board extends JPanel {
         }
     }
 
-
     public void aiMove() {
         if (colorToMove == 1 && !(scanner.scanCheckMate(1))) {
             isAIThinking = true;
@@ -340,12 +323,10 @@ public class Board extends JPanel {
         }
     }
 
-
     public void handleFirstMove(Piece piece) {
         if (piece.name.equals("Pawn") || piece.name.equals("King") || piece.name.equals("Rook"))
             firstMove(piece);
     }
-
 
     public void handleSpecialMoves(Move move, boolean simulate) {
         // Castling
@@ -372,7 +353,6 @@ public class Board extends JPanel {
         }
     }
 
-
     public boolean isEnPassant(Move move) {
         if (!scanner.enPassantEnable) return false;
         if (!move.piece.name.equals("Pawn")) return false;
@@ -387,12 +367,10 @@ public class Board extends JPanel {
         }
     }
 
-
     public boolean isPawnPromotion(Move move) {
         return move.piece.name.equals("Pawn") &&
                 (move.newRow == 0 || move.newRow == 7);
     }
-
 
     public void executeMove(Move move) {
         move.piece.col = move.newCol;
@@ -400,7 +378,6 @@ public class Board extends JPanel {
         move.piece.x = move.newCol * SQUARE_SIZE;
         move.piece.y = move.newRow * SQUARE_SIZE;
     }
-
 
     public boolean checkTeam(Piece p1, Piece p2) {
         if (p1 == null || p2 == null) {
@@ -410,7 +387,6 @@ public class Board extends JPanel {
             return (p1.color == p2.color);
         }
     }
-
 
     public boolean isValidMove(Move move) {
         if (threefold) return false;
@@ -425,7 +401,6 @@ public class Board extends JPanel {
         }
         return count;
     }
-
 
     // load position from FEN string
     public void addPieces(String FEN) {
@@ -476,148 +451,30 @@ public class Board extends JPanel {
 
     // Apply castling rights from FEN by setting piece isFirstMove flags
     private void applyCastlingRights(String castling) {
-        // Revoke all castling rights first
-        for (Piece piece : pieceList) {
-            if (piece.name.equals("King") || piece.name.equals("Rook")) {
-                piece.isFirstMove = false;
-            }
-        }
-        if (castling.equals("-")) return;
-        Piece whiteKing = getPiece(4, 7);
-        if (castling.contains("K")) {
-            Piece rook = getPiece(7, 7);
-            if (whiteKing != null) whiteKing.isFirstMove = true;
-            if (rook != null) rook.isFirstMove = true;
-        }
-        if (castling.contains("Q")) {
-            Piece rook = getPiece(0, 7);
-            if (whiteKing != null) whiteKing.isFirstMove = true;
-            if (rook != null) rook.isFirstMove = true;
-        }
-        Piece blackKing = getPiece(4, 0);
-        if (castling.contains("k")) {
-            Piece rook = getPiece(7, 0);
-            if (blackKing != null) blackKing.isFirstMove = true;
-            if (rook != null) rook.isFirstMove = true;
-        }
-        if (castling.contains("q")) {
-            Piece rook = getPiece(0, 0);
-            if (blackKing != null) blackKing.isFirstMove = true;
-            if (rook != null) rook.isFirstMove = true;
-        }
+        BoardFenHelper.applyCastlingRights(this, castling);
     }
 
     // If pawns are on a different row set firstMove to false
     private void applyPawnFirstMoveFlags() {
-        for (Piece piece : pieceList) {
-            if (piece.name.equals("Pawn")) {
-                // White pawns start at row 6 (rank 2), black pawns start at row 1 (rank 7)
-                if (piece.color == 0) {
-                    piece.isFirstMove = (piece.row == 6);
-                } else {
-                    piece.isFirstMove = (piece.row == 1);
-                }
-            }
-        }
+        BoardFenHelper.applyPawnFirstMoveFlags(this);
     }
 
     // Apply en passant target square from FEN by configuring the scanner
     private void applyEnPassantTarget(String enPassantTarget) {
-        if (enPassantTarget == null || enPassantTarget.equals("-")) {
-            scanner.enPassantEnable = false;
-            return;
-        }
-        int col = enPassantTarget.charAt(0) - 'a';
-        int rank = Character.getNumericValue(enPassantTarget.charAt(1));
-        int targetRow = 8 - rank;
-        // rank 3 = white pawn just double-moved; it sits at targetRow-1 (one row above target)
-        // rank 6 = black pawn just double-moved; it sits at targetRow+1 (one row below target)
-        int pawnRow = (rank == 3) ? targetRow - 1 : targetRow + 1;
-        scanner.enPassantEnable = true;
-        scanner.enPassantCol = col;
-        scanner.enPassantRow = pawnRow;
+        BoardFenHelper.applyEnPassantTarget(this, enPassantTarget);
     }
-
 
     // FEN helper to compute castling rights
     private String computeCastlingString() {
-
-        StringBuilder sb = new StringBuilder();
-
-        // White king castling rights
-        Piece whiteKing = getPiece(4, 7);
-        if (whiteKing != null && "King".equals(whiteKing.name) && whiteKing.isFirstMove) {
-            Piece whiteRookA = getPiece(0, 7);
-            if (whiteRookA != null && "Rook".equals(whiteRookA.name) && whiteRookA.isFirstMove) 
-                sb.append('K');
-            Piece whiteRookH = getPiece(7, 7);
-            if (whiteRookH != null && "Rook".equals(whiteRookH.name) && whiteRookH.isFirstMove) 
-                sb.append('Q');
-        }
-
-        Piece blackKing = getPiece(4, 0);
-        if (blackKing != null && "King".equals(blackKing.name) && blackKing.isFirstMove) {
-            Piece blackRookA = getPiece(0, 0);
-            if (blackRookA != null && "Rook".equals(blackRookA.name) && blackRookA.isFirstMove)
-                sb.append('k');
-            Piece blackRookH = getPiece(7, 0);
-            if (blackRookH != null && "Rook".equals(blackRookH.name) && blackRookH.isFirstMove) {
-                sb.append('q');
-            }
-        }
-        return sb.length() == 0 ? "-" : sb.toString();
+        return BoardFenHelper.computeCastlingString(this);
     }
-
 
     private String computeEnPassantTarget(int color) {
-        if (!scanner.enPassantEnable)
-            return "-";
-        int EnPassantRow = (color == 0) ? 5 : 2;
-        char file = (char) ('a' + scanner.enPassantCol);
-        int rank = 8 - EnPassantRow;
-        return "" + file + rank;
+        return BoardFenHelper.computeEnPassantTarget(this, color);
     }
 
-
     public String generateFEN(String enPassantTarget, String castlingRights) {
-        StringBuilder fen = new StringBuilder();
-        for (int row = 0; row < MAX_ROWS; row++) {
-            int emptyCount = 0;
-            for (int col = 0; col < MAX_COLS; col++) {
-                Piece piece = getPiece(col, row);
-                if (piece == null) {
-                    emptyCount++;
-                } else {
-                    if (emptyCount > 0) {
-                        fen.append(emptyCount);
-                        emptyCount = 0;
-                    }
-                    char pieceChar = switch (piece.name) {
-                        case "Rook" -> 'r';
-                        case "Knight" -> 'n';
-                        case "Bishop" -> 'b';
-                        case "Queen" -> 'q';
-                        case "King" -> 'k';
-                        case "Pawn" -> 'p';
-                        default -> '?';
-                    };
-                    fen.append(piece.color == 0 ? Character.toUpperCase(pieceChar) : pieceChar);
-                }
-            }
-            if (emptyCount > 0) {
-                fen.append(emptyCount);
-            }
-            if (row < MAX_ROWS - 1) {
-                fen.append('/');
-            }
-        }
-        fen.append(" ").append(colorToMove == 0 ? "w" : "b");
-
-        // Castling rights and en passant target square
-        fen.append (" ").append(castlingRights == null ? "-" : castlingRights);
-        fen.append(" ").append(enPassantTarget == null ? "-" : enPassantTarget);
-        fen.append(" 0 1"); // Placeholder for castling and en passant
-        return fen.toString();
+        return BoardFenHelper.generateFEN(this, enPassantTarget, castlingRights);
     }
 
     public void updateFEN(Move move, boolean simulate) {
@@ -632,13 +489,8 @@ public class Board extends JPanel {
     }
 
     public void updateRepetitionMap(String FEN) {
-        int count = repetitionMap.getOrDefault(FEN, 0) + 1;
-        repetitionMap.put(FEN, count);
-        if (count >= 3) {
-            threefold = true;
-        }
+        BoardFenHelper.updateRepetitionMap(this, FEN);
     }
-
 
     @Override
     public void paintComponent(Graphics graphics) {
@@ -690,13 +542,12 @@ public class Board extends JPanel {
 
     }
 
-
     public void display() {
-            JFrame frame = new JFrame("Chess Board");
-            frame.add(this);
-            frame.setLocation(600, 200);
-            frame.setSize(MAX_COLS * SQUARE_SIZE + 16, MAX_ROWS * SQUARE_SIZE + 39);
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setVisible(true);
-        }
+        JFrame frame = new JFrame("Chess Board");
+        frame.add(this);
+        frame.setLocation(600, 200);
+        frame.setSize(MAX_COLS * SQUARE_SIZE + 16, MAX_ROWS * SQUARE_SIZE + 39);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setVisible(true);
+    }
 }
