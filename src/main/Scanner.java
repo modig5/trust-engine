@@ -104,15 +104,33 @@ public class Scanner {
         return null;
     }
 
+    // Just checks if the king of given color is currently attacked
     public boolean isInCheck(int col, int row, int color) {
         for (Piece piece : pieceList) {
             if (piece.color != color) {
-                if (piece.isValidPieceMove(col, row) && !piece.checkForCollision(col, row)) {
+                if (isSquareAttackedBy(piece, col, row)) {
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    // Checks for whether a square is attacked by a specific piece
+    private boolean isSquareAttackedBy(Piece piece, int col, int row) {
+        int dCol = Math.abs(col - piece.col);
+        int dRow = Math.abs(row - piece.row);
+
+        return switch (piece.name) {
+            case "Pawn" -> row == piece.row + (piece.color == 0 ? -1 : 1) && dCol == 1;
+            case "Knight" -> (dCol == 2 && dRow == 1) || (dCol == 1 && dRow == 2);
+            case "King" -> dCol <= 1 && dRow <= 1;
+            case "Bishop" -> dCol == dRow && !piece.checkForCollision(col, row);
+            case "Rook" -> (piece.col == col || piece.row == row) && !piece.checkForCollision(col, row);
+            case "Queen" -> ((dCol == dRow) || (piece.col == col || piece.row == row))
+                    && !piece.checkForCollision(col, row);
+            default -> false;
+        };
     }
 
     // schizo solutions but works
