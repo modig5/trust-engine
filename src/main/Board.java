@@ -190,8 +190,8 @@ public class Board extends JPanel {
 
         updateFEN(move, simulate);
 
-        //if (!isAIThinking && !simulate)
-        //    aiMove();
+        if (!isAIThinking && !simulate)
+            aiMove();
 
 
         return undoInfo;
