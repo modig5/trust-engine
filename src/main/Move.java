@@ -10,6 +10,9 @@ public class Move {
     public int enPassantCol;
     public int enPassantRow;
     public boolean firstMove;
+    public String previousFEN;
+    public String resultingFEN;
+    public boolean previousThreefold;
 
     public boolean wasCastling;
     public boolean wasEnPassant;

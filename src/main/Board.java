@@ -181,10 +181,10 @@ public class Board extends JPanel {
 
         colorToMove = colorToMove ^ 1;
 
+        updateFEN(move, simulate);
+
         if (!isAIThinking && !simulate)
             aiMove();
-
-        updateFEN(move, simulate);
 
 
         return undoInfo;
@@ -213,6 +213,8 @@ public class Board extends JPanel {
         undoInfo.enPassantEnabled = scanner.enPassantEnable;
         undoInfo.enPassantCol = scanner.enPassantCol;
         undoInfo.enPassantRow = scanner.enPassantRow;
+        undoInfo.previousFEN = FEN;
+        undoInfo.previousThreefold = threefold;
 
         if (isPawnPromotion(move)) {
             undoInfo.wasPromotion = true;
@@ -240,6 +242,16 @@ public class Board extends JPanel {
     }
 
     public void undoMove(Move undoInfo) {
+        // Roll back repetition count for the position produced by this move
+        String fenToDecrement = undoInfo.resultingFEN != null ? undoInfo.resultingFEN : FEN;
+        int count = repetitionMap.getOrDefault(fenToDecrement, 0);
+        // If count is 1 we can decrement, otherwise remove the entry entirely (it was never repeated before)
+        if (count > 1) {
+            repetitionMap.put(fenToDecrement, count - 1);
+        } else {
+            repetitionMap.remove(fenToDecrement);
+        }
+
         if (undoInfo.wasPromotion)
             undoPromotion(undoInfo);
 
@@ -267,6 +279,8 @@ public class Board extends JPanel {
 
         // Restore color to move
         colorToMove = undoInfo.oldColorToMove;
+        FEN = undoInfo.previousFEN;
+        threefold = undoInfo.previousThreefold;
     }
 
     public void undoPromotion(Move move) {
@@ -313,7 +327,8 @@ public class Board extends JPanel {
         if (colorToMove == 1 && !(scanner.scanCheckMate(1))) {
             isAIThinking = true;
 
-            Timer timer = new Timer(500, e -> {
+            // Timer to make it feel more natural and allow UI to update before move is made
+            Timer timer = new Timer(50, e -> {
                 ai.makeAIMove();
                 isAIThinking = false;
                 repaint();
@@ -478,14 +493,17 @@ public class Board extends JPanel {
     }
 
     public void updateFEN(Move move, boolean simulate) {
-        if (simulate)
-            return;
-
         // Compute castling rights and en passant target square based on the move
         String castlingRights = computeCastlingString();
         String enPassantTarget = computeEnPassantTarget(move.piece.color);
         FEN = generateFEN(enPassantTarget, castlingRights);
-        updateRepetitionMap(FEN);
+        move.resultingFEN = FEN;
+
+        int count = repetitionMap.getOrDefault(FEN, 0) + 1;
+        repetitionMap.put(FEN, count);
+        if (!simulate && count >= 3) {
+            threefold = true;
+        }
     }
 
     public void updateRepetitionMap(String FEN) {

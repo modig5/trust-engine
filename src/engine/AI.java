@@ -20,6 +20,9 @@ public class AI {
     public final int queenVal = 900;
     public final int kingVal = 100000;
 
+    int CONTEMPT_FACTOR = 15; // value for adjusting when to prefer repetition
+    int WINNING_MARGIN = 70; // value that determines winning positions
+
     private static final int[][] PAWN_TABLE = {
             {0, 0, 0, 0, 0, 0, 0, 0},
             {50, 50, 50, 50, 50, 50, 50, 50},
@@ -123,9 +126,8 @@ public class AI {
             }
         }
 
-        if (board.repetitionMap.get(board.FEN) >= 3) {
-            System.out.println("threefold repetition trust");
-            return 0; // Draw by repetition
+        if (board.repetitionMap.getOrDefault(board.FEN, 0) >= 3) {
+            return repetitionScore();
         }
 
         for (Move move : moves) {
@@ -141,6 +143,18 @@ public class AI {
         return alpha;
     }
 
+    public int repetitionScore() {
+        int currentEval = evaluate();
+
+        // Punish draws in winning positions and reward them in losing positions
+        if (currentEval > WINNING_MARGIN) {
+            return -CONTEMPT_FACTOR;
+        } else if (currentEval < -WINNING_MARGIN) {
+            return CONTEMPT_FACTOR;
+        }
+        return 0;
+    }
+    
     public int evaluate() {
         int whiteScore = countMaterial(0);
         int blackScore = countMaterial(1);
@@ -245,7 +259,7 @@ public class AI {
     }
 
     public void makeAIMove() {
-        if (board.repetitionMap.get(board.FEN) >= 3) {
+        if (board.repetitionMap.getOrDefault(board.FEN, 0) >= 3) {
             return;
         }
 
