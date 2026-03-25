@@ -20,8 +20,10 @@ public class Board extends JPanel {
     public Piece selectedPiece;
     public int colorToMove = 0;
     public Scanner scanner = new Scanner(this);
-    public int lastSquareMoveFrom;
-    public int lastSquareMoveTo;
+
+    // initialize to -1 to indicate no move has been made yet
+    public int lastSquareMoveFrom = -1; 
+    public int lastSquareMoveTo = -1;
 
     AI ai = new AI(this);
 
@@ -172,6 +174,11 @@ public class Board extends JPanel {
 
         Move undoInfo = undoInfoForMove(move);
 
+        if (!simulate) {
+            lastSquareMoveFrom = move.col + move.row * MAX_COLS;
+            lastSquareMoveTo = move.newCol + move.newRow * MAX_COLS;
+        }
+
         handleFirstMove(move.piece);
         executeMove(move);
         handleSpecialMoves(move, simulate);
@@ -183,8 +190,8 @@ public class Board extends JPanel {
 
         updateFEN(move, simulate);
 
-        if (!isAIThinking && !simulate)
-            aiMove();
+        //if (!isAIThinking && !simulate)
+        //    aiMove();
 
 
         return undoInfo;
@@ -523,6 +530,21 @@ public class Board extends JPanel {
                 }
                 graphics.fillRect(j * SQUARE_SIZE, i * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
             }
+        }
+
+        // Highlight last played move (from and to squares)
+        if (lastSquareMoveFrom >= 0) {
+            int fromCol = lastSquareMoveFrom % MAX_COLS;
+            int fromRow = lastSquareMoveFrom / MAX_COLS;
+            graphics.setColor(new Color(246, 246, 105, 180));
+            graphics.fillRect(fromCol * SQUARE_SIZE, fromRow * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+        }
+
+        if (lastSquareMoveTo >= 0) {
+            int toCol = lastSquareMoveTo % MAX_COLS;
+            int toRow = lastSquareMoveTo / MAX_COLS;
+            graphics.setColor(new Color(246, 246, 105, 180));
+            graphics.fillRect(toCol * SQUARE_SIZE, toRow * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
         }
 
         // Highlight selected piece and valid moves
