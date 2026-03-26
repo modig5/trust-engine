@@ -89,11 +89,13 @@ public class Board extends JPanel {
         // If promotionPiece is specified in the move, use it
         if (move.promotionPiece != null) {
             Piece promotedPiece = createPromotedPieceByName(move.promotionPiece, move.newCol, move.newRow, move.piece.color);
+            positionPieceOnBoard(promotedPiece);
             pieceList.add(promotedPiece);
         }
         // Otherwise just promote to queen
         else if (simulate || isAIThinking) {
             Piece promotedPiece = new Queen(this, move.newCol, move.newRow, move.piece.color);
+            positionPieceOnBoard(promotedPiece);
             pieceList.add(promotedPiece);
         }
         else {
@@ -109,6 +111,7 @@ public class Board extends JPanel {
                     options[0]
             );
             Piece promotedPiece = createPromotedPiece(choice, move.newCol, move.newRow, move.piece.color);
+            positionPieceOnBoard(promotedPiece);
             pieceList.add(promotedPiece);
         }
     }
