@@ -26,24 +26,26 @@ public class Input extends MouseAdapter {
     private boolean inputLocked() {
         return board.threefold
             || board.isAIThinking
+            || board.colorToMove != board.humanColor
             || board.scanner.scanCheckMate(board.colorToMove);
     }
 
-    private static int toCol(int pixelX) {
-        return clamp(pixelX / SQUARE_SIZE, 0, MAX_COLS - 1);
+    private int toCol(int pixelX) {
+        int col = clamp(pixelX / SQUARE_SIZE, 0, MAX_COLS - 1);
+        return board.isBoardFlipped ? (MAX_COLS - 1 - col) : col;
     }
 
-    private static int toRow(int pixelY) {
-        return clamp(pixelY / SQUARE_SIZE, 0, MAX_ROWS - 1);
+    private int toRow(int pixelY) {
+        int row = clamp(pixelY / SQUARE_SIZE, 0, MAX_ROWS - 1);
+        return board.isBoardFlipped ? (MAX_ROWS - 1 - row) : row;
     }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }
 
-    private static void snapToGrid(Piece piece) {
-        piece.x = piece.col * SQUARE_SIZE;
-        piece.y = piece.row * SQUARE_SIZE;
+    private void snapToGrid(Piece piece) {
+        board.positionPieceOnBoard(piece);
     }
 
     private boolean isFriendly(Piece piece) {

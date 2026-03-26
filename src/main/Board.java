@@ -28,6 +28,9 @@ public class Board extends JPanel {
     AI ai = new AI(this);
 
     public boolean isAIThinking = false;
+    public int humanColor = 0;
+    public int aiColor = 1;
+    public boolean isBoardFlipped = false;
 
     // Map for threefold repetition: FEN string -> count of occurrences
     public Map<String, Integer> repetitionMap = new HashMap<>();
@@ -136,8 +139,7 @@ public class Board extends JPanel {
             if (rook != null) {
                 rook.col = 3;
                 rook.row = move.row;
-                rook.x   = 3 * SQUARE_SIZE;
-                rook.y   = move.row * SQUARE_SIZE;
+                positionPieceOnBoard(rook);
                 rook.isFirstMove = false;
             }
         } else {
@@ -145,8 +147,7 @@ public class Board extends JPanel {
             if (rook != null) {
                 rook.col = 5;
                 rook.row = move.row;
-                rook.x   = 5 * SQUARE_SIZE;
-                rook.y   = move.row * SQUARE_SIZE;
+                positionPieceOnBoard(rook);
                 rook.isFirstMove = false;
             }
         }
@@ -271,8 +272,7 @@ public class Board extends JPanel {
         // Restore piece position
         undoInfo.piece.col = undoInfo.col;
         undoInfo.piece.row = undoInfo.row;
-        undoInfo.piece.x = undoInfo.col * SQUARE_SIZE;
-        undoInfo.piece.y = undoInfo.row * SQUARE_SIZE;
+        positionPieceOnBoard(undoInfo.piece);
 
         undoInfo.piece.isFirstMove = undoInfo.firstMove;
         scanner.enPassantEnable = undoInfo.enPassantEnabled;
@@ -312,8 +312,7 @@ public class Board extends JPanel {
             if (rook != null) {
                 rook.col = 0;
                 rook.row = move.row;
-                rook.x = rook.col * SQUARE_SIZE;
-                rook.y = rook.row * SQUARE_SIZE;
+                positionPieceOnBoard(rook);
                 rook.isFirstMove = move.rookFirstMove;
             }
         }
@@ -323,15 +322,14 @@ public class Board extends JPanel {
             if (rook != null) {
                 rook.col = 7;
                 rook.row = move.row;
-                rook.x = rook.col * SQUARE_SIZE;
-                rook.y = rook.row * SQUARE_SIZE;
+                positionPieceOnBoard(rook);
                 rook.isFirstMove = move.rookFirstMove;
             }
         }
     }
 
     public void aiMove() {
-        if (colorToMove == 1 && !(scanner.scanCheckMate(1))) {
+        if (colorToMove == aiColor && !(scanner.scanCheckMate(aiColor))) {
             isAIThinking = true;
 
             // Timer to make it feel more natural and allow UI to update before move is made
@@ -397,8 +395,30 @@ public class Board extends JPanel {
     public void executeMove(Move move) {
         move.piece.col = move.newCol;
         move.piece.row = move.newRow;
-        move.piece.x = move.newCol * SQUARE_SIZE;
-        move.piece.y = move.newRow * SQUARE_SIZE;
+        // Update the position on visual board
+        positionPieceOnBoard(move.piece);
+    }
+
+    // Helper functions to draw the pieces correctly (logic position -> visual position)
+    
+    public int viewCol(int col) {
+        return isBoardFlipped ? (MAX_COLS - 1 - col) : col;
+    }
+
+    public int viewRow(int row) {
+        return isBoardFlipped ? (MAX_ROWS - 1 - row) : row;
+    }
+
+    public void positionPieceOnBoard(Piece piece) {
+        piece.x = viewCol(piece.col) * SQUARE_SIZE;
+        piece.y = viewRow(piece.row) * SQUARE_SIZE;
+    }
+
+    // Refresh after initially choosing color
+    public void refreshAllPiecePositions() {
+        for (Piece piece : pieceList) {
+            positionPieceOnBoard(piece);
+        }
     }
 
     public boolean checkTeam(Piece p1, Piece p2) {
@@ -534,15 +554,15 @@ public class Board extends JPanel {
 
         // Highlight last played move (from and to squares)
         if (lastSquareMoveFrom >= 0) {
-            int fromCol = lastSquareMoveFrom % MAX_COLS;
-            int fromRow = lastSquareMoveFrom / MAX_COLS;
+            int fromCol = viewCol(lastSquareMoveFrom % MAX_COLS);
+            int fromRow = viewRow(lastSquareMoveFrom / MAX_COLS);
             graphics.setColor(new Color(246, 246, 105, 180));
             graphics.fillRect(fromCol * SQUARE_SIZE, fromRow * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
         }
 
         if (lastSquareMoveTo >= 0) {
-            int toCol = lastSquareMoveTo % MAX_COLS;
-            int toRow = lastSquareMoveTo / MAX_COLS;
+            int toCol = viewCol(lastSquareMoveTo % MAX_COLS);
+            int toRow = viewRow(lastSquareMoveTo / MAX_COLS);
             graphics.setColor(new Color(246, 246, 105, 180));
             graphics.fillRect(toCol * SQUARE_SIZE, toRow * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
         }
@@ -551,14 +571,14 @@ public class Board extends JPanel {
         if (selectedPiece != null) {
             // Selected piece's square
             graphics.setColor(new Color(246, 246, 105, 180));
-            graphics.fillRect(selectedPiece.col * SQUARE_SIZE, selectedPiece.row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+            graphics.fillRect(viewCol(selectedPiece.col) * SQUARE_SIZE, viewRow(selectedPiece.row) * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
 
             // Valid destination squares
             for (int i = 0; i < MAX_ROWS; i++) {
                 for (int j = 0; j < MAX_COLS; j++) {
                     if (isValidMove(new Move(this, selectedPiece, j, i))) {
                         graphics.setColor(new Color(66, 127, 46, 166));
-                        graphics.fillRect(j * SQUARE_SIZE, i * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+                        graphics.fillRect(viewCol(j) * SQUARE_SIZE, viewRow(i) * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
                     }
                 }
             }
@@ -583,11 +603,43 @@ public class Board extends JPanel {
     }
 
     public void display() {
+        choosePlayerColor();
+
         JFrame frame = new JFrame("Chess Board");
         frame.add(this);
         frame.setLocation(600, 200);
         frame.setSize(MAX_COLS * SQUARE_SIZE + 16, MAX_ROWS * SQUARE_SIZE + 39);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
+
+        if (colorToMove == aiColor) {
+            aiMove();
+        }
+    }
+
+    private void choosePlayerColor() {
+        String[] options = {"White", "Black"};
+        int choice = JOptionPane.showOptionDialog(
+                this,
+                "Choose your side:",
+                "Play As",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                options,
+                options[0]
+        );
+
+        if (choice == 1) {
+            humanColor = 1;
+            aiColor = 0;
+            isBoardFlipped = true;
+        } else {
+            humanColor = 0;
+            aiColor = 1;
+            isBoardFlipped = false;
+        }
+
+        refreshAllPiecePositions();
     }
 }
