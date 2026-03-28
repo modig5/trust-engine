@@ -12,7 +12,7 @@ public class King extends Piece {
         this.x = getX(col);
         this.y = getY(row);
         this.color = color;
-        this.name = "King";
+        this.type = PieceType.KING;
 
 
         if (color == 0) {

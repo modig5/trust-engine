@@ -1,6 +1,7 @@
 package engine;
 
 import Pieces.Piece;
+import Pieces.PieceType;
 import main.Board;
 import main.Move;
 
@@ -91,11 +92,11 @@ public class AI {
             {-20, -30, -30, -40, -40, -30, -30, -20},
             {-10, -20, -20, -20, -20, -20, -20, -10},
             {20, 20, 0, 0, 0, 0, 20, 20},
-            {20, 50, 0, 0, 0, 0, 50, 20}
+            {20, 50, 30, 0, 0, 0, 50, 20}
     };
 
     private static final int[][] FLIPPED_KING_TABLE = {
-            {20, 50, 0, 0, 0, 0, 50, 20},
+            {20, 50, 0, 0, 0, 100, 50, 20},
             {20, 20, 0, 0, 0, 0, 20, 20},
             {-10, -20, -20, -20, -20, -20, -20, -10},
             {-20, -30, -30, -40, -40, -30, -30, -20},
@@ -181,28 +182,24 @@ public class AI {
     public int countMaterial(int color) {
         int materialScore = 0;
 
-        materialScore += board.countPieces(color, "Pawn") * pawnVal;
-        materialScore += board.countPieces(color, "Knight") * knightVal;
-        materialScore += board.countPieces(color, "Bishop") * bishopVal;
-        materialScore += board.countPieces(color, "Queen") * queenVal;
-        materialScore += board.countPieces(color, "Rook") * rookVal;
-        materialScore += board.countPieces(color, "King") * kingVal;
+        materialScore += board.countPieces(color, PieceType.PAWN) * pawnVal;
+        materialScore += board.countPieces(color, PieceType.KNIGHT) * knightVal;
+        materialScore += board.countPieces(color, PieceType.BISHOP) * bishopVal;
+        materialScore += board.countPieces(color, PieceType.QUEEN) * queenVal;
+        materialScore += board.countPieces(color, PieceType.ROOK) * rookVal;
+        materialScore += board.countPieces(color, PieceType.KING) * kingVal;
 
         return materialScore;
     }
 
     public int convertPieceToMaterial(Piece piece) {
-        return switch (piece.name) {
-            case "Pawn" -> pawnVal;
-            case "Knight" -> knightVal;
-            case "Bishop" -> bishopVal;
-            case "Rook" -> rookVal;
-            case "Queen" -> queenVal;
-            case "King" -> kingVal;
-            default -> {
-                System.err.println("Warning: unknown piece type: " + piece.name);
-                yield 0;
-            }
+        return switch (piece.type) {
+            case PAWN -> pawnVal;
+            case KNIGHT -> knightVal;
+            case BISHOP -> bishopVal;
+            case ROOK -> rookVal;
+            case QUEEN -> queenVal;
+            case KING -> kingVal;
         };
     }
 
@@ -214,18 +211,17 @@ public class AI {
             row = 7 - row;
 
         if (row < 0 || row > 7 || col < 0 || col > 7) {
-            System.err.println("Warning: piece has invalid coordinates: " + piece.name + " color=" + piece.color + " row=" + piece.row + " col=" + piece.col);
+            System.err.println("Warning: piece has invalid coordinates: " + piece.type + " color=" + piece.color + " row=" + piece.row + " col=" + piece.col);
             return 0;
         }
 
-        return switch (piece.name) {
-            case "Pawn" -> PAWN_TABLE[row][col];
-            case "Knight" -> KNIGHT_TABLE[row][col];
-            case "Bishop" -> BISHOP_TABLE[row][col];
-            case "Rook" -> ROOK_TABLE[row][col];
-            case "Queen" -> QUEEN_TABLE[row][col];
-            case "King" -> FLIPPED_KING_TABLE[row][col];
-            default -> 0;
+        return switch (piece.type) {
+            case PAWN -> PAWN_TABLE[row][col];
+            case KNIGHT -> KNIGHT_TABLE[row][col];
+            case BISHOP -> BISHOP_TABLE[row][col];
+            case ROOK -> ROOK_TABLE[row][col];
+            case QUEEN -> QUEEN_TABLE[row][col];
+            case KING -> FLIPPED_KING_TABLE[row][col];
         };
     }
 

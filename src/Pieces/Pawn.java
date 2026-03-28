@@ -12,7 +12,7 @@ public class Pawn extends Piece {
         this.x = getX(col);
         this.y = getY(row);
         this.color = color;
-        this.name = "Pawn";
+        this.type = PieceType.PAWN;
 
         if (color == 0) {
             image = getImage("/resources/Chess_plt60.png");

@@ -10,7 +10,7 @@ public class Knight extends Piece {
         this.x = getX(col);
         this.y = getY(row);
         this.color = color;
-        this.name = "Knight";
+        this.type = PieceType.KNIGHT;
 
 
         if (color == 0) {

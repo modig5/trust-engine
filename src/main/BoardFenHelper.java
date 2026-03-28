@@ -1,6 +1,7 @@
 package main;
 
 import Pieces.Piece;
+import Pieces.PieceType;
 
 import static main.Board.pieceList;
 
@@ -12,7 +13,7 @@ public final class BoardFenHelper {
     public static void applyCastlingRights(Board board, String castling) {
         // Revoke all castling rights first
         for (Piece piece : pieceList) {
-            if (piece.name.equals("King") || piece.name.equals("Rook")) {
+            if (piece.type == PieceType.KING || piece.type == PieceType.ROOK) {
                 piece.isFirstMove = false;
             }
         }
@@ -45,7 +46,7 @@ public final class BoardFenHelper {
 
     public static void applyPawnFirstMoveFlags(Board board) {
         for (Piece piece : pieceList) {
-            if (piece.name.equals("Pawn")) {
+            if (piece.type == PieceType.PAWN) {
                 // White pawns start at row 6 (rank 2), black pawns start at row 1 (rank 7)
                 if (piece.color == 0) {
                     piece.isFirstMove = (piece.row == 6);
@@ -77,22 +78,22 @@ public final class BoardFenHelper {
 
         // White king castling rights
         Piece whiteKing = board.getPiece(4, 7);
-        if (whiteKing != null && "King".equals(whiteKing.name) && whiteKing.isFirstMove) {
+        if (whiteKing != null && whiteKing.type == PieceType.KING && whiteKing.isFirstMove) {
             Piece whiteRookA = board.getPiece(0, 7);
-            if (whiteRookA != null && "Rook".equals(whiteRookA.name) && whiteRookA.isFirstMove)
+            if (whiteRookA != null && whiteRookA.type == PieceType.ROOK && whiteRookA.isFirstMove)
                 sb.append('K');
             Piece whiteRookH = board.getPiece(7, 7);
-            if (whiteRookH != null && "Rook".equals(whiteRookH.name) && whiteRookH.isFirstMove)
+            if (whiteRookH != null && whiteRookH.type == PieceType.ROOK && whiteRookH.isFirstMove)
                 sb.append('Q');
         }
 
         Piece blackKing = board.getPiece(4, 0);
-        if (blackKing != null && "King".equals(blackKing.name) && blackKing.isFirstMove) {
+        if (blackKing != null && blackKing.type == PieceType.KING && blackKing.isFirstMove) {
             Piece blackRookA = board.getPiece(0, 0);
-            if (blackRookA != null && "Rook".equals(blackRookA.name) && blackRookA.isFirstMove)
+            if (blackRookA != null && blackRookA.type == PieceType.ROOK && blackRookA.isFirstMove)
                 sb.append('k');
             Piece blackRookH = board.getPiece(7, 0);
-            if (blackRookH != null && "Rook".equals(blackRookH.name) && blackRookH.isFirstMove) {
+            if (blackRookH != null && blackRookH.type == PieceType.ROOK && blackRookH.isFirstMove) {
                 sb.append('q');
             }
         }
@@ -121,14 +122,13 @@ public final class BoardFenHelper {
                         fen.append(emptyCount);
                         emptyCount = 0;
                     }
-                    char pieceChar = switch (piece.name) {
-                        case "Rook" -> 'r';
-                        case "Knight" -> 'n';
-                        case "Bishop" -> 'b';
-                        case "Queen" -> 'q';
-                        case "King" -> 'k';
-                        case "Pawn" -> 'p';
-                        default -> '?';
+                    char pieceChar = switch (piece.type) {
+                        case ROOK -> 'r';
+                        case KNIGHT -> 'n';
+                        case BISHOP -> 'b';
+                        case QUEEN -> 'q';
+                        case KING -> 'k';
+                        case PAWN -> 'p';
                     };
                     fen.append(piece.color == 0 ? Character.toUpperCase(pieceChar) : pieceChar);
                 }

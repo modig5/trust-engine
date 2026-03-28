@@ -1,6 +1,7 @@
 package main;
 
 import Pieces.Piece;
+import Pieces.PieceType;
 
 public class Move {
     public int col, row;
@@ -18,7 +19,7 @@ public class Move {
     public boolean wasEnPassant;
     public boolean wasPromotion;
     public Piece promotedFrom;
-    public String promotionPiece; // "Queen", "Rook", "Bishop", or "Knight"
+    public PieceType promotionPiece;
     
     // Save rookFirstMove so we can restore it when we undo castling
     public boolean rookFirstMove;
@@ -30,7 +31,7 @@ public class Move {
         this(board, piece, newCol, newRow, null);
     }
 
-    public Move(Board board, Piece piece, int newCol, int newRow, String promotionPiece) {
+    public Move(Board board, Piece piece, int newCol, int newRow, PieceType promotionPiece) {
         col = piece.col;
         row = piece.row;
         this.newCol = newCol;

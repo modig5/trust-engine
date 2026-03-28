@@ -10,7 +10,7 @@ public class Rook extends Piece {
         this.x = getX(col);
         this.y = getY(row);
         this.color = color;
-        this.name = "Rook";
+        this.type = PieceType.ROOK;
 
 
         if (color == 0) {

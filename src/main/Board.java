@@ -2,6 +2,7 @@ package main;
 
 import engine.AI;
 import Pieces.*;
+import Pieces.PieceType;
 
 import javax.swing.*;
 import java.awt.*;
@@ -88,7 +89,7 @@ public class Board extends JPanel {
 
         // If promotionPiece is specified in the move, use it
         if (move.promotionPiece != null) {
-            Piece promotedPiece = createPromotedPieceByName(move.promotionPiece, move.newCol, move.newRow, move.piece.color);
+            Piece promotedPiece = createPromotedPieceByType(move.promotionPiece, move.newCol, move.newRow, move.piece.color);
             positionPieceOnBoard(promotedPiece);
             pieceList.add(promotedPiece);
         }
@@ -127,11 +128,11 @@ public class Board extends JPanel {
     }
 
     // For when engine decides
-    public Piece createPromotedPieceByName(String pieceName, int col, int row, int color) {
-        return switch (pieceName) {
-            case "Rook" -> new Rook(this, col, row, color);
-            case "Bishop" -> new Bishop(this, col, row, color);
-            case "Knight" -> new Knight(this, col, row, color);
+    public Piece createPromotedPieceByType(PieceType pieceType, int col, int row, int color) {
+        return switch (pieceType) {
+            case ROOK -> new Rook(this, col, row, color);
+            case BISHOP -> new Bishop(this, col, row, color);
+            case KNIGHT -> new Knight(this, col, row, color);
             default -> new Queen(this, col, row, color);
         };
     }
@@ -231,7 +232,7 @@ public class Board extends JPanel {
             undoInfo.wasPromotion = true;
         }
 
-        if (move.piece.name.equals("King") && Math.abs(move.col - move.newCol) == 2) {
+        if (move.piece.type == PieceType.KING && Math.abs(move.col - move.newCol) == 2) {
             undoInfo.wasCastling = true;
             // Save rook's isFirstMove state for castling undo
             if (move.newCol == 2) {
@@ -347,13 +348,13 @@ public class Board extends JPanel {
     }
 
     public void handleFirstMove(Piece piece) {
-        if (piece.name.equals("Pawn") || piece.name.equals("King") || piece.name.equals("Rook"))
+        if (piece.type == PieceType.PAWN || piece.type == PieceType.KING || piece.type == PieceType.ROOK)
             firstMove(piece);
     }
 
     public void handleSpecialMoves(Move move, boolean simulate) {
         // Castling
-        if (move.piece.name.equals("King") && Math.abs(move.col - move.newCol) == 2) {
+        if (move.piece.type == PieceType.KING && Math.abs(move.col - move.newCol) == 2) {
             castling(move);
             scanner.enPassantEnable = false;
             return;
@@ -365,7 +366,7 @@ public class Board extends JPanel {
         }
 
         // Setup en passant
-        else if (move.piece.name.equals("Pawn") && Math.abs(move.row - move.newRow) == 2)
+        else if (move.piece.type == PieceType.PAWN && Math.abs(move.row - move.newRow) == 2)
             scanner.enPassantPossible(move);
         else
             scanner.enPassantEnable = false;
@@ -378,7 +379,7 @@ public class Board extends JPanel {
 
     public boolean isEnPassant(Move move) {
         if (!scanner.enPassantEnable) return false;
-        if (!move.piece.name.equals("Pawn")) return false;
+        if (move.piece.type != PieceType.PAWN) return false;
         if (Math.abs(move.col - move.newCol) != 1) return false;
         if (move.newCol != scanner.enPassantCol) return false;
 
@@ -391,7 +392,7 @@ public class Board extends JPanel {
     }
 
     public boolean isPawnPromotion(Move move) {
-        return move.piece.name.equals("Pawn") &&
+        return move.piece.type == PieceType.PAWN &&
                 (move.newRow == 0 || move.newRow == 7);
     }
 
@@ -438,10 +439,10 @@ public class Board extends JPanel {
         return scanner.isValidMove(move);
     }
 
-    public int countPieces(int color, String name) {
+    public int countPieces(int color, PieceType type) {
         int count = 0;
         for (Piece piece : pieceList) {
-            if (piece.name.equals(name) && piece.color == color)
+            if (piece.type == type && piece.color == color)
                 count++;
         }
         return count;

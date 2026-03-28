@@ -12,7 +12,7 @@ public class Piece {
     public int color;
     public int x, y;
     public int row, col;
-    public String name;
+    public PieceType type;
     public boolean isFirstMove = true;
 
     Board board;

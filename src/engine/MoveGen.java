@@ -1,6 +1,7 @@
 package engine;
 
 import Pieces.Piece;
+import Pieces.PieceType;
 import main.Board;
 import main.Move;
 
@@ -31,13 +32,13 @@ public class MoveGen {
     public void generateMovesForPiece(Piece piece, ArrayList<Move> validMoves) {
         int square = BitBoard.SquareToIndex(piece.row, piece.col);
 
-        switch (piece.name) {
-            case "Pawn" -> generatePawnMoves(piece, square, validMoves);
-            case "Knight" -> generateKnightMoves(piece, square, validMoves);
-            case "King" -> generateKingMoves(piece, square, validMoves);
-            case "Bishop" -> generateSlidingMoves(piece, AttackTables.BISHOP_DIRECTIONS, validMoves);
-            case "Rook" -> generateSlidingMoves(piece, AttackTables.ROOK_DIRECTIONS, validMoves);
-            case "Queen" -> generateSlidingMoves(piece, AttackTables.QUEEN_DIRECTIONS, validMoves);
+        switch (piece.type) {
+            case PAWN -> generatePawnMoves(piece, square, validMoves);
+            case KNIGHT -> generateKnightMoves(piece, square, validMoves);
+            case KING -> generateKingMoves(piece, square, validMoves);
+            case BISHOP -> generateSlidingMoves(piece, AttackTables.BISHOP_DIRECTIONS, validMoves);
+            case ROOK -> generateSlidingMoves(piece, AttackTables.ROOK_DIRECTIONS, validMoves);
+            case QUEEN -> generateSlidingMoves(piece, AttackTables.QUEEN_DIRECTIONS, validMoves);
         }
     }
 
@@ -139,7 +140,7 @@ public class MoveGen {
 
     private void addMoveIfValid(Piece piece, int col, int row, ArrayList<Move> validMoves) {
         // Check if this is a pawn promotion
-        if (piece.name.equals("Pawn")) {
+        if (piece.type == PieceType.PAWN) {
             boolean isPromotion = (piece.color == 0 && row == 0) || (piece.color == 1 && row == 7);
             if (isPromotion) {
                 addPromotionMoves(piece, col, row, validMoves);
@@ -157,8 +158,8 @@ public class MoveGen {
 
     // Generate 4 moves for each promotion piece
     private void addPromotionMoves(Piece piece, int col, int row, ArrayList<Move> validMoves) {
-        String[] promotionPieces = {"Queen", "Rook", "Bishop", "Knight"};
-        for (String promotionPiece : promotionPieces) {
+        PieceType[] promotionPieces = {PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT};
+        for (PieceType promotionPiece : promotionPieces) {
             Move move = new Move(board, piece, col, row, promotionPiece);
             if (board.scanner.isValidMove(move)) {
                 validMoves.add(move);

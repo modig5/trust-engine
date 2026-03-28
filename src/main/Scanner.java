@@ -1,6 +1,7 @@
 package main;
 
 import Pieces.Piece;
+import Pieces.PieceType;
 
 import java.util.ArrayList;
 
@@ -53,7 +54,7 @@ public class Scanner {
         if (isInCheck(king.col, king.row, color)) return false;
 
         Piece rook = board.getPiece(0,king.row);
-        if (rook == null || !rook.name.equals("Rook") || !(rook.isFirstMove) || rook.color != color) return false;
+        if (rook == null || rook.type != PieceType.ROOK || !(rook.isFirstMove) || rook.color != color) return false;
 
         for (int col = 1; col < king.col; col++) {
             if (board.getPiece(col, king.row) != null) return false;
@@ -70,7 +71,7 @@ public class Scanner {
         if (isInCheck(king.col, king.row, color)) return false;
 
         Piece rook = board.getPiece(7,king.row);
-        if (rook == null || !rook.name.equals("Rook") || !(rook.isFirstMove) || rook.color != color) return false;
+        if (rook == null || rook.type != PieceType.ROOK || !(rook.isFirstMove) || rook.color != color) return false;
 
         for (int col = 5; col < 7; col++) {
             if (board.getPiece(col, king.row) != null) return false;
@@ -97,7 +98,7 @@ public class Scanner {
 
     public Piece findKing(int color) {
         for (Piece piece : pieceList) {
-            if (piece.color == color && piece.name.equals("King")) {
+            if (piece.color == color && piece.type == PieceType.KING) {
                 return piece;
             }
         }
@@ -121,15 +122,14 @@ public class Scanner {
         int dCol = Math.abs(col - piece.col);
         int dRow = Math.abs(row - piece.row);
 
-        return switch (piece.name) {
-            case "Pawn" -> row == piece.row + (piece.color == 0 ? -1 : 1) && dCol == 1;
-            case "Knight" -> (dCol == 2 && dRow == 1) || (dCol == 1 && dRow == 2);
-            case "King" -> dCol <= 1 && dRow <= 1;
-            case "Bishop" -> dCol == dRow && !piece.checkForCollision(col, row);
-            case "Rook" -> (piece.col == col || piece.row == row) && !piece.checkForCollision(col, row);
-            case "Queen" -> ((dCol == dRow) || (piece.col == col || piece.row == row))
+        return switch (piece.type) {
+            case PAWN -> row == piece.row + (piece.color == 0 ? -1 : 1) && dCol == 1;
+            case KNIGHT -> (dCol == 2 && dRow == 1) || (dCol == 1 && dRow == 2);
+            case KING -> dCol <= 1 && dRow <= 1;
+            case BISHOP -> dCol == dRow && !piece.checkForCollision(col, row);
+            case ROOK -> (piece.col == col || piece.row == row) && !piece.checkForCollision(col, row);
+            case QUEEN -> ((dCol == dRow) || (piece.col == col || piece.row == row))
                     && !piece.checkForCollision(col, row);
-            default -> false;
         };
     }
 
