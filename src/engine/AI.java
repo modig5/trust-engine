@@ -59,7 +59,7 @@ public class AI {
             {-20, -10, -10, -10, -10, -10, -10, -20}
     };
 
-    // Rook position values
+    // Rook position values (rewards the 7th rank from the piece's own perspective)
     private static final int[][] ROOK_TABLE = {
             {0, 0, 0, 0, 0, 0, 0, 0},
             {5, 10, 10, 10, 10, 10, 10, 5},
@@ -83,7 +83,7 @@ public class AI {
             {-20, -10, -10, -5, -5, -10, -10, -20}
     };
 
-    // King position values (middle game)
+    // King position values, middle game (from the piece's own perspective)
     private static final int[][] KING_TABLE = {
             {-30, -40, -40, -50, -50, -40, -40, -30},
             {-30, -40, -40, -50, -50, -40, -40, -30},
@@ -91,19 +91,8 @@ public class AI {
             {-30, -40, -40, -50, -50, -40, -40, -30},
             {-20, -30, -30, -40, -40, -30, -30, -20},
             {-10, -20, -20, -20, -20, -20, -20, -10},
-            {20, 20, 0, 0, 0, 0, 20, 20},
+            {0, 0, 0, 0, 0, 0, 0, 0},
             {20, 50, 30, 0, 0, 0, 50, 20}
-    };
-
-    private static final int[][] FLIPPED_KING_TABLE = {
-            {20, 50, 0, 0, 0, 100, 50, 20},
-            {20, 20, 0, 0, 0, 0, 20, 20},
-            {-10, -20, -20, -20, -20, -20, -20, -10},
-            {-20, -30, -30, -40, -40, -30, -30, -20},
-            {-30, -40, -40, -50, -50, -40, -40, -30},
-            {-30, -40, -40, -50, -50, -40, -40, -30},
-            {-30, -40, -40, -50, -50, -40, -40, -30},
-            {-30, -40, -40, -50, -50, -40, -40, -30}
     };
 
     public AI(Board board) {
@@ -221,7 +210,7 @@ public class AI {
             case BISHOP -> BISHOP_TABLE[row][col];
             case ROOK -> ROOK_TABLE[row][col];
             case QUEEN -> QUEEN_TABLE[row][col];
-            case KING -> FLIPPED_KING_TABLE[row][col];
+            case KING -> KING_TABLE[row][col];
         };
     }
 
