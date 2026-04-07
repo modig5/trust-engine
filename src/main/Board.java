@@ -37,6 +37,11 @@ public class Board extends JPanel {
     public Map<String, Integer> repetitionMap = new HashMap<>();
     public boolean threefold = false;
 
+    // Move history for redoing and undoing moves (visually)
+    public ArrayList<Move> moveHistory = new ArrayList<>();
+    public ArrayList<Move> originalMoves = new ArrayList<>();
+    public int moveHistoryIndex = -1;
+
     public Board() {
         this("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     }
@@ -70,6 +75,10 @@ public class Board extends JPanel {
         Input input = new Input(this);
         this.addMouseListener(input);
         this.addMouseMotionListener(input);
+        this.addKeyListener(input);
+
+        this.setFocusable(true);
+        this.requestFocusInWindow();
     }
 
     public Piece getPiece(int col, int row) {
@@ -179,6 +188,17 @@ public class Board extends JPanel {
 
         Move undoInfo = undoInfoForMove(move);
 
+        if (!simulate) {
+            // Trim future moves if we branched off on redoMove
+            while (moveHistory.size() > moveHistoryIndex + 1) {
+                moveHistory.remove(moveHistory.size() - 1);
+                originalMoves.remove(originalMoves.size() - 1);
+            }
+            moveHistory.add(undoInfo);
+            originalMoves.add(move);
+            moveHistoryIndex++;
+        }
+            
         if (!simulate) {
             lastSquareMoveFrom = move.col + move.row * MAX_COLS;
             lastSquareMoveTo = move.newCol + move.newRow * MAX_COLS;
@@ -541,6 +561,25 @@ public class Board extends JPanel {
         BoardFenHelper.updateRepetitionMap(this, FEN);
     }
 
+    public void undoLastMove() {
+        if (moveHistoryIndex < 0) return;
+        undoMove(moveHistory.get(moveHistoryIndex));
+        moveHistoryIndex--;
+        repaint();
+    }
+
+    public void redoLastMove() {
+        if (moveHistoryIndex + 1 >= originalMoves.size()) return;
+        Move move = originalMoves.get(moveHistoryIndex + 1);
+        // Use simulate=true so it doesn't re-add to history
+        makeMove(move, true);
+        // Because of simulate we need to update visuals manually
+        lastSquareMoveFrom = move.col + move.row * MAX_COLS;
+        lastSquareMoveTo = move.newCol + move.newRow * MAX_COLS;
+        moveHistoryIndex++;
+        repaint();
+    }
+    
     @Override
     public void paintComponent(Graphics graphics) {
         super.paintComponent(graphics);

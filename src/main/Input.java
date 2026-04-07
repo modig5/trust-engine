@@ -5,8 +5,10 @@ import static main.Board.*;
 import Pieces.Piece;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 
-public class Input extends MouseAdapter {
+public class Input extends MouseAdapter implements KeyListener {
 
     private static final int DRAG_THRESHOLD = 5;
 
@@ -153,4 +155,29 @@ public class Input extends MouseAdapter {
         board.selectedPiece.y = e.getY() - SQUARE_SIZE / 2;
         board.repaint();
     }
+
+    // Get keyboard input for undo/redo move history. (Left-arrow, right-arrow)
+    public void keyPressed(KeyEvent e) {
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_LEFT:
+                board.undoLastMove();
+                System.out.println("Undo");
+                break;
+            case KeyEvent.VK_RIGHT:
+                board.redoLastMove();
+                System.out.println("Redo");
+                break;
+        }
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+        
+    }
+
+    @Override
+    public void keyTyped(KeyEvent e) {
+        
+    }
+    
 }
