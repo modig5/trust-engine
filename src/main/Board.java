@@ -42,6 +42,7 @@ public class Board extends JPanel {
     public ArrayList<Move> originalMoves = new ArrayList<>();
     public int moveHistoryIndex = -1;
 
+
     public Board() {
         this("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     }
@@ -353,7 +354,7 @@ public class Board extends JPanel {
     }
 
     public void aiMove() {
-        if (colorToMove == aiColor && !(scanner.scanCheckMate(aiColor))) {
+        if (colorToMove == aiColor && !(scanner.scanCheckMate(aiColor)) && !(scanner.insufficientMaterial())) {
             isAIThinking = true;
 
             // Timer to make it feel more natural and allow UI to update before move is made
@@ -641,6 +642,12 @@ public class Board extends JPanel {
             graphics.setColor(Color.BLACK);
             graphics.setFont(new Font("Arial", Font.BOLD, 50));
             graphics.drawString("Draw by repetition", 20, MAX_ROWS * SQUARE_SIZE / 2);
+        }
+
+        if (scanner.insufficientMaterial()) {
+            graphics.setColor(Color.BLACK);
+            graphics.setFont(new Font("Arial", Font.BOLD, 50));
+            graphics.drawString("Draw by insufficient material", 20, MAX_ROWS * SQUARE_SIZE / 2 + 60);
         }
 
     }

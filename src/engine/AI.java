@@ -116,6 +116,10 @@ public class AI {
             }
         }
 
+        if (board.scanner.insufficientMaterial()) {
+            return 0;
+        }
+
         if (board.repetitionMap.getOrDefault(board.FEN, 0) >= 3) {
             return repetitionScore();
         }

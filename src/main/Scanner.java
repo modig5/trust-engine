@@ -42,6 +42,48 @@ public class Scanner {
         return true;  // only true if no legal moves were found
     }
 
+    public boolean insufficientMaterial() {
+        ArrayList<Piece> whitePieces = new ArrayList<>();
+        ArrayList<Piece> blackPieces = new ArrayList<>();
+
+        // Add all pieces to either sides list
+        for (Piece piece : board.pieceList) {
+            if (piece.color == 0) whitePieces.add(piece);
+            else blackPieces.add(piece);
+        }
+
+        int whiteAmount = whitePieces.size();
+        int blackAmount = blackPieces.size();
+        
+        if (whiteAmount == 1 && blackAmount == 1)
+            return true;
+
+        // Check for bishop vs king (both sides)
+        if (whiteAmount == 1 && blackAmount == 2) {
+            Piece otherPiece = findNonKingPiece(blackPieces);
+            if (otherPiece.type == PieceType.BISHOP || otherPiece.type == PieceType.KNIGHT)
+                return true;
+        }
+
+        if (whiteAmount == 2 && blackAmount == 1) {
+            Piece otherPiece = findNonKingPiece(whitePieces);
+            if (otherPiece.type == PieceType.BISHOP || otherPiece.type == PieceType.KNIGHT)
+                return true;
+        }
+
+        // King and Bishop vs King and Bishop (same colored bishops)
+        if (whiteAmount == 2 && blackAmount == 2) {
+            Piece whiteBishop = findPieceByType(whitePieces, PieceType.BISHOP);
+            Piece blackBishop = findPieceByType(blackPieces, PieceType.BISHOP);
+            if (whiteBishop != null && blackBishop != null) {
+                boolean whiteBishopLightSquared = (whiteBishop.col + whiteBishop.row) % 2 == 0;
+                boolean blackBishopLightSquared = (blackBishop.col + blackBishop.row) % 2 == 0;
+                return blackBishopLightSquared == whiteBishopLightSquared;
+            }
+        }
+        return false;
+    }
+
     public void enPassantPossible(Move move) {
         enPassantEnable = true;
         enPassantCol = move.piece.col;
@@ -94,6 +136,23 @@ public class Scanner {
         else if (wouldBeInCheck(move))
             return false;
         return true;
+    }
+
+    public Piece findPieceByType(ArrayList<Piece> pieces, PieceType typeToFind) {
+        for (Piece piece : pieces) {
+            if (piece.type == typeToFind)
+                return piece;
+        }
+        return null;
+    }
+
+    // Helper to find first non KING piece
+    public Piece findNonKingPiece(ArrayList<Piece> pieces) {
+        for (Piece piece: pieces) {
+            if (!(piece.type == PieceType.KING))
+                return piece;
+        }
+        return null;
     }
 
     public Piece findKing(int color) {

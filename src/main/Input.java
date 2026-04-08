@@ -29,7 +29,8 @@ public class Input extends MouseAdapter implements KeyListener {
         return board.threefold
             || board.isAIThinking
             || board.colorToMove != board.humanColor
-            || board.scanner.scanCheckMate(board.colorToMove);
+            || board.scanner.scanCheckMate(board.colorToMove)
+            || board.scanner.insufficientMaterial();
     }
 
     private int toCol(int pixelX) {
