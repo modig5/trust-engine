@@ -142,10 +142,10 @@ public final class BoardFenHelper {
         }
         fen.append(" ").append(board.colorToMove == 0 ? "w" : "b");
 
-        // Castling rights and en passant target square
+        // Castling rights, en passant target square and move counters
         fen.append(" ").append(castlingRights == null ? "-" : castlingRights);
         fen.append(" ").append(enPassantTarget == null ? "-" : enPassantTarget);
-        fen.append(" 0 1");
+        fen.append(" ").append(board.halfMoveCounter).append(" ").append(board.fullMoveNumber);
         return fen.toString();
     }
 

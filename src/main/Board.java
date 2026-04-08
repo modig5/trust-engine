@@ -37,14 +37,18 @@ public class Board extends JPanel {
     public Map<String, Integer> repetitionMap = new HashMap<>();
     public boolean threefold = false;
 
+    // Counter for moves (50-move rule)
+    public int halfMoveCounter = 0;
+    public boolean drawByHalfMoveClock = false;
+    public int fullMoveNumber = 1;
+
     // Move history for redoing and undoing moves (visually)
     public ArrayList<Move> moveHistory = new ArrayList<>();
     public ArrayList<Move> originalMoves = new ArrayList<>();
     public int moveHistoryIndex = -1;
 
-
     public Board() {
-        this("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        this("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 98 49");
     }
 
     public Board(String fullFEN) {
@@ -66,6 +70,16 @@ public class Board extends JPanel {
         // Parse en passant target (field 4)
         String enPassantTarget = parts.length > 3 ? parts[3] : "-";
         applyEnPassantTarget(enPassantTarget);
+
+        // Parse halfmove clock (field 5)
+        if (parts.length > 4) {
+            halfMoveCounter = Integer.parseInt(parts[4]);
+        }
+
+        // Parse full move number (field 6)
+        if (parts.length > 5) {
+            fullMoveNumber = Integer.parseInt(parts[5]);
+        }
 
         // Store the full FEN via generateFEN
         FEN = generateFEN(enPassantTarget, castlingRights);
@@ -201,6 +215,7 @@ public class Board extends JPanel {
         }
             
         if (!simulate) {
+            updateHalfMoveCounter(move);
             lastSquareMoveFrom = move.col + move.row * MAX_COLS;
             lastSquareMoveTo = move.newCol + move.newRow * MAX_COLS;
         }
@@ -213,12 +228,12 @@ public class Board extends JPanel {
         selectedPiece = null;
 
         colorToMove = colorToMove ^ 1;
+        if (colorToMove == 0) fullMoveNumber++;
 
         updateFEN(move, simulate);
 
         if (!isAIThinking && !simulate)
             aiMove();
-
 
         return undoInfo;
     }
@@ -310,6 +325,7 @@ public class Board extends JPanel {
         }
 
         // Restore color to move
+        if (colorToMove == 0) fullMoveNumber--;
         colorToMove = undoInfo.oldColorToMove;
         FEN = undoInfo.previousFEN;
         threefold = undoInfo.previousThreefold;
@@ -354,7 +370,7 @@ public class Board extends JPanel {
     }
 
     public void aiMove() {
-        if (colorToMove == aiColor && !(scanner.scanCheckMate(aiColor)) && !(scanner.insufficientMaterial())) {
+        if (colorToMove == aiColor && !(scanner.scanCheckMate(aiColor)) && !(scanner.insufficientMaterial() && !(drawByHalfMoveClock))) {
             isAIThinking = true;
 
             // Timer to make it feel more natural and allow UI to update before move is made
@@ -422,6 +438,16 @@ public class Board extends JPanel {
         move.piece.row = move.newRow;
         // Update the position on visual board
         positionPieceOnBoard(move.piece);
+    }
+
+    public void updateHalfMoveCounter(Move move) {
+        // Reset on captures and pawn pushes
+        if (move.capture != null || move.piece.type == PieceType.PAWN)
+            halfMoveCounter = 0;
+        else
+            halfMoveCounter++;
+            if (halfMoveCounter == 100)
+                drawByHalfMoveClock = true;
     }
 
     // Helper functions to draw the pieces correctly (logic position -> visual position)
@@ -648,6 +674,12 @@ public class Board extends JPanel {
             graphics.setColor(Color.BLACK);
             graphics.setFont(new Font("Arial", Font.BOLD, 50));
             graphics.drawString("Draw by insufficient material", 20, MAX_ROWS * SQUARE_SIZE / 2 + 60);
+        }
+
+        if (drawByHalfMoveClock) {
+            graphics.setColor(Color.BLACK);
+            graphics.setFont(new Font("Arial", Font.BOLD, 50));
+            graphics.drawString("Draw by 50-move rule", 20, MAX_ROWS * SQUARE_SIZE / 2);
         }
 
     }
