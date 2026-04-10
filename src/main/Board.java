@@ -48,7 +48,7 @@ public class Board extends JPanel {
     public int moveHistoryIndex = -1;
 
     public Board() {
-        this("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 98 49");
+        this("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     }
 
     public Board(String fullFEN) {
