@@ -78,7 +78,7 @@ public class OpeningBook {
         if (piece == null) return null;
 
         // Polyglot encodes castling as king-takes-own-rook (e1h1, e1a1, e8h8, e8a8).
-        // So translate to into acutal coordinates
+        // So translate into actual coordinates
         if (piece.type == PieceType.KING && fromCol == 4) {
             if (fromRow == 7 && toRow == 7 && (toCol == 7 || toCol == 0)) {
                 toCol = (toCol == 7) ? 6 : 2;

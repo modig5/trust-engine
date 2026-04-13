@@ -203,6 +203,7 @@ public class Board extends JPanel {
 
         Move undoInfo = undoInfoForMove(move);
 
+        // Only change moveHistory on actual moves
         if (!simulate) {
             // Trim future moves if we branched off on redoMove
             while (moveHistory.size() > moveHistoryIndex + 1) {
@@ -212,9 +213,7 @@ public class Board extends JPanel {
             moveHistory.add(undoInfo);
             originalMoves.add(move);
             moveHistoryIndex++;
-        }
-            
-        if (!simulate) {
+
             updateHalfMoveCounter(move);
             lastSquareMoveFrom = move.col + move.row * MAX_COLS;
             lastSquareMoveTo = move.newCol + move.newRow * MAX_COLS;
