@@ -42,5 +42,22 @@ public class Move {
         this.promotionPiece = promotionPiece;
     }
 
-
+    public static void printMove(Move move) {
+        if (move == null) {
+            System.out.println("null move");
+            return;
+        }
+        String s = "" + (char)('a' + move.col) + (8 - move.row)
+                      + (char)('a' + move.newCol) + (8 - move.newRow);
+        if (move.promotionPiece != null) {
+            s += switch (move.promotionPiece) {
+                case KNIGHT -> "n";
+                case BISHOP -> "b";
+                case ROOK   -> "r";
+                case QUEEN  -> "q";
+                default     -> "";
+            };
+        }
+        System.out.println(s);
+    }
 }
