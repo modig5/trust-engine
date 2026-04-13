@@ -99,7 +99,7 @@ public class AI {
     public AI(Board board) {
         this.board = board;
         this.moveGenerator = new MoveGen(board);
-        this.book = new OpeningBook("src/resources/Titans.bin", board);
+        this.book = new OpeningBook("src/resources/Opening.bin", board);
     }
 
     public int miniMax(int depth, int alpha, int beta) {
@@ -265,8 +265,6 @@ public class AI {
         if (bookEntry != null) {
             Move bookMove = book.decodeMove(bookEntry.polyMove);
             if (bookMove != null) {
-                System.out.println("FOUND MOVE IN BOOK");
-                Move.printMove(bookMove);
                 board.makeMove(bookMove, false);
                 return;
             }
