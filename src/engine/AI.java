@@ -13,6 +13,7 @@ public class AI {
     public int depth = 4;
     Board board;
     private MoveGen moveGenerator;
+    private final OpeningBook book;
 
     public final int pawnVal = 100;
     public final int knightVal = 320;
@@ -98,6 +99,7 @@ public class AI {
     public AI(Board board) {
         this.board = board;
         this.moveGenerator = new MoveGen(board);
+        this.book = new OpeningBook("src/resources/Titans.bin", board);
     }
 
     public int miniMax(int depth, int alpha, int beta) {
@@ -256,6 +258,18 @@ public class AI {
 
         if (validMoves.isEmpty()) {
             return;
+        }
+
+        // Check for an opening move, if null then continue normally
+        OpeningBook.BookEntry bookEntry = book.pickMove();
+        if (bookEntry != null) {
+            Move bookMove = book.decodeMove(bookEntry.polyMove);
+            if (bookMove != null) {
+                System.out.println("FOUND MOVE IN BOOK");
+                Move.printMove(bookMove);
+                board.makeMove(bookMove, false);
+                return;
+            }
         }
 
         Move bestMove = null;
