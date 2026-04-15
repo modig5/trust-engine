@@ -84,8 +84,8 @@ public class Board extends JPanel {
         // Store the full FEN via generateFEN
         FEN = generateFEN(enPassantTarget, castlingRights);
 
-        // Add first position to repetition map
-        repetitionMap.put(FEN, 1);
+        // Add first position to repetition map (without move counters)
+        repetitionMap.put(BoardFenHelper.repetitionKey(FEN), 1);
 
         Input input = new Input(this);
         this.addMouseListener(input);
@@ -291,12 +291,13 @@ public class Board extends JPanel {
     public void undoMove(Move undoInfo) {
         // Roll back repetition count for the position produced by this move
         String fenToDecrement = undoInfo.resultingFEN != null ? undoInfo.resultingFEN : FEN;
-        int count = repetitionMap.getOrDefault(fenToDecrement, 0);
+        String repetitionKeyToDecrement = BoardFenHelper.repetitionKey(fenToDecrement);
+        int count = repetitionMap.getOrDefault(repetitionKeyToDecrement, 0);
         // If count is 1 we can decrement, otherwise remove the entry entirely (it was never repeated before)
         if (count > 1) {
-            repetitionMap.put(fenToDecrement, count - 1);
+            repetitionMap.put(repetitionKeyToDecrement, count - 1);
         } else {
-            repetitionMap.remove(fenToDecrement);
+            repetitionMap.remove(repetitionKeyToDecrement);
         }
 
         if (undoInfo.wasPromotion)
@@ -576,8 +577,10 @@ public class Board extends JPanel {
         FEN = generateFEN(enPassantTarget, castlingRights);
         move.resultingFEN = FEN;
 
-        int count = repetitionMap.getOrDefault(FEN, 0) + 1;
-        repetitionMap.put(FEN, count);
+        String repetitionKey = BoardFenHelper.repetitionKey(FEN);
+        int count = repetitionMap.getOrDefault(repetitionKey, 0) + 1;
+        repetitionMap.put(repetitionKey, count);
+
         if (!simulate && count >= 3) {
             threefold = true;
         }

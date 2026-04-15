@@ -149,9 +149,24 @@ public final class BoardFenHelper {
         return fen.toString();
     }
 
+    public static String repetitionKey(String fen) {
+        if (fen == null || fen.isBlank()) {
+            return "";
+        }
+
+        String[] parts = fen.trim().split("\\s+");
+        if (parts.length < 4) {
+            return fen.trim();
+        }
+
+        return parts[0] + " " + parts[1] + " " + parts[2] + " " + parts[3];
+    }
+
     public static void updateRepetitionMap(Board board, String fen) {
-        int count = board.repetitionMap.getOrDefault(fen, 0) + 1;
-        board.repetitionMap.put(fen, count);
+        String key = repetitionKey(fen);
+        int count = board.repetitionMap.getOrDefault(key, 0) + 1;
+        board.repetitionMap.put(key, count);
+        System.out.println(count);
         if (count >= 3) {
             board.threefold = true;
         }

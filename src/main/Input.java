@@ -162,11 +162,9 @@ public class Input extends MouseAdapter implements KeyListener {
         switch (e.getKeyCode()) {
             case KeyEvent.VK_LEFT:
                 board.undoLastMove();
-                System.out.println("Undo");
                 break;
             case KeyEvent.VK_RIGHT:
                 board.redoLastMove();
-                System.out.println("Redo");
                 break;
         }
     }
