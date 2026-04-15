@@ -3,14 +3,16 @@ package engine;
 import Pieces.Piece;
 import Pieces.PieceType;
 import main.Board;
+import main.BoardFenHelper;
 import main.Move;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static main.Board.pieceList;
 
 public class AI {
-    public int depth = 4;
+    public int maxDepth = 4;
     Board board;
     private MoveGen moveGenerator;
     private final OpeningBook book;
@@ -24,6 +26,9 @@ public class AI {
 
     int CONTEMPT_FACTOR = 15; // value for adjusting when to prefer repetition
     int WINNING_MARGIN = 70; // value that determines winning positions
+
+    public final AtomicBoolean stopRequested = new AtomicBoolean(false);
+    public Move ponderMove;
 
     private static final int[][] PAWN_TABLE = {
             {0, 0, 0, 0, 0, 0, 0, 0},
@@ -56,7 +61,7 @@ public class AI {
             {-10, 5, 5, 10, 10, 5, 5, -10},
             {-10, 0, 10, 10, 10, 10, 0, -10},
             {-10, 10, 10, 10, 10, 10, 10, -10},
-            {-10, 5, 0, 0, 0, 0, 5, -10},
+            {-10, 10, 0, 0, 0, 0, 10, -10},
             {-20, -10, -10, -10, -10, -10, -10, -20}
     };
 
@@ -102,8 +107,8 @@ public class AI {
         this.book = new OpeningBook("src/resources/Opening.bin", board);
     }
 
-    public int miniMax(int depth, int alpha, int beta) {
-        if (depth == 0) {
+    public int negaMax(int maxDepth, int alpha, int beta) {
+        if (maxDepth == 0) {
             return evaluate();
         }
 
@@ -112,7 +117,7 @@ public class AI {
         if (moves.isEmpty()) {
             Piece king = board.scanner.findKing(board.colorToMove);
             if (board.scanner.isInCheck(king.col, king.row, board.colorToMove)) {
-                return -kingVal - depth;
+                return -kingVal - maxDepth;
             } else {
                 return 0; // Stalemate
             }
@@ -122,13 +127,13 @@ public class AI {
             return 0;
         }
 
-        if (board.repetitionMap.getOrDefault(board.FEN, 0) >= 3) {
+        if (board.repetitionMap.getOrDefault(BoardFenHelper.repetitionKey(board.FEN), 0) >= 3) {
             return repetitionScore();
         }
 
         for (Move move : moves) {
             Move undoInfo = board.makeMove(move, true);
-            int eval = -miniMax(depth - 1, -beta, -alpha);
+            int eval = -negaMax(maxDepth - 1, -beta, -alpha);
             board.undoMove(undoInfo);
 
             if (eval >= beta)
@@ -250,7 +255,7 @@ public class AI {
     }
 
     public void makeAIMove() {
-        if (board.repetitionMap.getOrDefault(board.FEN, 0) >= 3) {
+        if (board.repetitionMap.getOrDefault(BoardFenHelper.repetitionKey(board.FEN), 0) >= 3) {
             return;
         }
 
@@ -271,16 +276,25 @@ public class AI {
         }
 
         Move bestMove = null;
-        int bestScore = Integer.MIN_VALUE;
 
-        for (Move move : validMoves) {
-            Move undoInfo = board.makeMove(move, true);
-            int score = -miniMax(depth - 1, -Integer.MAX_VALUE, Integer.MAX_VALUE);
-            if (score > bestScore) {
-                bestScore = score;
-                bestMove = move;
+        for (int d = 0; d < maxDepth; d++) {
+            Move iterationBestMove = null;
+            int iterationScore = Integer.MIN_VALUE;
+
+            // Move to bestMove to the front for better pruning
+            //if (bestMove != null)
+                //moveToFront(bestMove, validMoves);
+        
+            for (Move move : validMoves) {
+                Move undoInfo = board.makeMove(move, true);
+                int score = -negaMax(maxDepth - 1, -Integer.MAX_VALUE, Integer.MAX_VALUE);
+                if (score > iterationScore) {
+                    iterationScore = score;
+                    iterationBestMove = move;
+                }
+                board.undoMove(undoInfo);
             }
-            board.undoMove(undoInfo);
+            bestMove = iterationBestMove;
         }
 
         //System.out.println(bestScore);
