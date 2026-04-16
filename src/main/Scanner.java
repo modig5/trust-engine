@@ -5,7 +5,6 @@ import Pieces.PieceType;
 
 import java.util.ArrayList;
 
-import static main.Board.pieceList;
 
 public class Scanner {
     Board board;
@@ -25,7 +24,7 @@ public class Scanner {
             return false;
         }
         // copy
-        ArrayList<Piece> piecesCopy = new ArrayList<>(pieceList);
+        ArrayList<Piece> piecesCopy = new ArrayList<>(board.pieceList);
 
         for (Piece piece : piecesCopy) {
             if (piece.color == color) {
@@ -156,7 +155,7 @@ public class Scanner {
     }
 
     public Piece findKing(int color) {
-        for (Piece piece : pieceList) {
+        for (Piece piece : board.pieceList) {
             if (piece.color == color && piece.type == PieceType.KING) {
                 return piece;
             }
@@ -166,7 +165,7 @@ public class Scanner {
 
     // Just checks if the king of given color is currently attacked
     public boolean isInCheck(int col, int row, int color) {
-        for (Piece piece : pieceList) {
+        for (Piece piece : board.pieceList) {
             if (piece.color != color) {
                 if (isSquareAttackedBy(piece, col, row)) {
                     return true;
@@ -203,20 +202,20 @@ public class Scanner {
         if (board.isEnPassant(move)) {
             int squareDiff = move.piece.color == 0 ? 1 : -1;
             epCaptured = board.getPiece(move.newCol, move.newRow + squareDiff);
-            if (epCaptured != null) pieceList.remove(epCaptured);
+            if (epCaptured != null) board.pieceList.remove(epCaptured);
         }
 
         move.piece.col = move.newCol;
         move.piece.row = move.newRow;
-        if (capturedPiece != null) pieceList.remove(capturedPiece);
+        if (capturedPiece != null) board.pieceList.remove(capturedPiece);
 
         Piece king = findKing(move.piece.color);
         boolean inCheck = isInCheck(king.col, king.row, king.color);
 
         move.piece.col = oldCol;
         move.piece.row = oldRow;
-        if (capturedPiece != null) pieceList.add(capturedPiece);
-        if (epCaptured != null) pieceList.add(epCaptured);
+        if (capturedPiece != null) board.pieceList.add(capturedPiece);
+        if (epCaptured != null) board.pieceList.add(epCaptured);
 
         return inCheck;
     }
