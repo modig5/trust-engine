@@ -17,7 +17,7 @@ public class Board extends JPanel {
 
     public String FEN = "";
 
-    public static ArrayList<Piece> pieceList = new ArrayList<>();
+    public ArrayList<Piece> pieceList = new ArrayList<>();
     public Piece selectedPiece;
     public int colorToMove = 0;
     public Scanner scanner = new Scanner(this);
@@ -26,7 +26,7 @@ public class Board extends JPanel {
     public int lastSquareMoveFrom = -1; 
     public int lastSquareMoveTo = -1;
 
-    AI ai = new AI(this);
+    AI ai;
 
     public boolean isAIThinking = false;
     public int humanColor = 0;
@@ -52,6 +52,7 @@ public class Board extends JPanel {
     }
 
     public Board(String fullFEN) {
+        this.ai = new AI(this);
         String[] parts = fullFEN.split(" ");
 
         // Parse piece placement (field 1)
@@ -94,6 +95,31 @@ public class Board extends JPanel {
 
         this.setFocusable(true);
         this.requestFocusInWindow();
+    }
+
+    // Lightweight copy constructor for search
+    // Used by pondering thread
+    public Board(Board other) {
+        this.colorToMove = other.colorToMove;
+        this.FEN = other.FEN;
+        this.halfMoveCounter = other.halfMoveCounter;
+        this.fullMoveNumber = other.fullMoveNumber;
+        this.threefold = other.threefold;
+        this.humanColor = other.humanColor;
+        this.aiColor = other.aiColor;
+        this.drawByHalfMoveClock = other.drawByHalfMoveClock;
+        this.repetitionMap = new HashMap<>(other.repetitionMap);
+
+        // Deep copy pieces, pointing at this board
+        for (Piece piece : other.pieceList) {
+            this.pieceList.add(piece.copy(this));
+        }
+
+        // Copy scanner state
+        this.scanner = new Scanner(this);
+        this.scanner.enPassantEnable = other.scanner.enPassantEnable;
+        this.scanner.enPassantCol = other.scanner.enPassantCol;
+        this.scanner.enPassantRow = other.scanner.enPassantRow;
     }
 
     public Piece getPiece(int col, int row) {
@@ -232,7 +258,7 @@ public class Board extends JPanel {
         updateFEN(move, simulate);
 
         if (!isAIThinking && !simulate)
-            aiMove();
+            aiMove(move);
 
         return undoInfo;
     }
@@ -369,11 +395,32 @@ public class Board extends JPanel {
         }
     }
 
-    public void aiMove() {
+    public void aiMove(Move lastPlayerMove) {
         if (colorToMove == aiColor && !(scanner.scanCheckMate(aiColor)) && !(scanner.insufficientMaterial() && !(drawByHalfMoveClock))) {
             isAIThinking = true;
 
-            // Timer to make it feel more natural and allow UI to update before move is made
+            // Check for ponder hit
+            if (lastPlayerMove != null && ai.isPonderHit(lastPlayerMove)) {
+                ai.stopPonder();
+                Move ponderResult = ai.getPonderBestMove();
+                if (ponderResult != null) {
+                    // Find the matching move on the real board
+                    Piece piece = getPiece(ponderResult.col, ponderResult.row);
+                    if (piece != null) {
+                        Move realMove = new Move(this, piece, ponderResult.newCol, ponderResult.newRow);
+                        realMove.promotionPiece = ponderResult.promotionPiece;
+                        makeMove(realMove, false);
+                        ai.startNewPonder();
+                        isAIThinking = false;
+                        repaint();
+                        return;
+                    }
+                }
+            } else {
+                ai.stopPonder();
+            }
+
+            // Normal search (or ponder miss fallback)
             Timer timer = new Timer(50, e -> {
                 ai.makeAIMove();
                 isAIThinking = false;
@@ -592,6 +639,8 @@ public class Board extends JPanel {
 
     public void undoLastMove() {
         if (moveHistoryIndex < 0) return;
+        ai.stopPonder();
+        ai.clearPonderState();
         undoMove(moveHistory.get(moveHistoryIndex));
         moveHistoryIndex--;
         repaint();
@@ -697,7 +746,8 @@ public class Board extends JPanel {
         frame.setVisible(true);
 
         if (colorToMove == aiColor) {
-            aiMove();
+            // No previous move if AI starts (null)
+            aiMove(null);
         }
     }
 

@@ -7,7 +7,6 @@ import main.Move;
 
 import java.util.ArrayList;
 
-import static main.Board.pieceList;
 
 public class MoveGen {
     private final Board board;
@@ -18,7 +17,7 @@ public class MoveGen {
 
     public ArrayList<Move> getAllValidMoves() {
         ArrayList<Move> validMoves = new ArrayList<>();
-        ArrayList<Piece> piecesCopy = new ArrayList<>(pieceList);
+        ArrayList<Piece> piecesCopy = new ArrayList<>(board.pieceList);
 
         for (Piece piece : piecesCopy) {
             if (piece == null || piece.color != board.colorToMove)

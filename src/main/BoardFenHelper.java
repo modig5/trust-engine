@@ -3,7 +3,6 @@ package main;
 import Pieces.Piece;
 import Pieces.PieceType;
 
-import static main.Board.pieceList;
 
 public final class BoardFenHelper {
 
@@ -12,7 +11,7 @@ public final class BoardFenHelper {
 
     public static void applyCastlingRights(Board board, String castling) {
         // Revoke all castling rights first
-        for (Piece piece : pieceList) {
+        for (Piece piece : board.pieceList) {
             if (piece.type == PieceType.KING || piece.type == PieceType.ROOK) {
                 piece.isFirstMove = false;
             }
@@ -45,7 +44,7 @@ public final class BoardFenHelper {
     }
 
     public static void applyPawnFirstMoveFlags(Board board) {
-        for (Piece piece : pieceList) {
+        for (Piece piece : board.pieceList) {
             if (piece.type == PieceType.PAWN) {
                 // White pawns start at row 6 (rank 2), black pawns start at row 1 (rank 7)
                 if (piece.color == 0) {

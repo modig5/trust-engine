@@ -74,4 +74,16 @@ public class Piece {
         return false;
     }
 
+    public Piece copy(Board newBoard) {
+        Piece copy = switch (this.type) {
+            case PAWN -> new Pawn(newBoard, col, row, color);
+            case KNIGHT -> new Knight(newBoard, col, row, color);
+            case BISHOP -> new Bishop(newBoard, col, row, color);
+            case ROOK -> new Rook(newBoard, col, row, color);
+            case QUEEN -> new Queen(newBoard, col, row, color);
+            case KING -> new King(newBoard, col, row, color);
+        };
+        copy.isFirstMove = this.isFirstMove;
+        return copy;
+    }
 }
