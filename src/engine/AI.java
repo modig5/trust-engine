@@ -15,6 +15,7 @@ public class AI {
     Board board;
     private MoveGen moveGenerator;
     private final OpeningBook book;
+    private final TranspositionTable tt = new TranspositionTable(64);
 
     public final int pawnVal = 100;
     public final int knightVal = 320;
@@ -127,6 +128,13 @@ public class AI {
             return evaluate();
         }
 
+        // Probe transposition table
+        long hash = board.zobristHash;
+        int ttScore = tt.probe(hash, maxDepth, alpha, beta);
+        if (ttScore != Integer.MIN_VALUE) {
+            return ttScore;
+        }
+
         ArrayList<Move> moves = getAllValidMoves();
 
         if (moves.isEmpty()) {
@@ -146,16 +154,25 @@ public class AI {
             return repetitionScore();
         }
 
+        int originalAlpha = alpha;
+
         for (Move move : moves) {
             Move undoInfo = board.makeMove(move, true);
             int eval = -negaMax(maxDepth - 1, -beta, -alpha);
             board.undoMove(undoInfo);
 
-            if (eval >= beta)
+            if (eval >= beta) {
+                tt.store(hash, maxDepth, beta, TranspositionTable.BETA);
                 return beta;
+            }
 
             alpha = Math.max(alpha, eval);
         }
+
+        // Store in transposition table
+        int flag = (alpha <= originalAlpha) ? TranspositionTable.ALPHA : TranspositionTable.EXACT;
+        tt.store(hash, maxDepth, alpha, flag);
+
         return alpha;
     }
 
@@ -290,7 +307,10 @@ public class AI {
             }
         }
 
+        long startTime = System.currentTimeMillis();
         Move bestMove = search(board);
+        long elapsed = System.currentTimeMillis() - startTime;
+        System.out.println("Search: " + elapsed + "ms");
 
         if (bestMove != null) {
             board.makeMove(bestMove, false);

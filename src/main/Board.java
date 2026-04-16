@@ -1,6 +1,7 @@
 package main;
 
 import engine.AI;
+import engine.Zobrist;
 import Pieces.*;
 import Pieces.PieceType;
 
@@ -16,6 +17,7 @@ public class Board extends JPanel {
     public static final int MAX_COLS = 8;
 
     public String FEN = "";
+    public long zobristHash;
 
     public ArrayList<Piece> pieceList = new ArrayList<>();
     public Piece selectedPiece;
@@ -88,6 +90,8 @@ public class Board extends JPanel {
         // Add first position to repetition map (without move counters)
         repetitionMap.put(BoardFenHelper.repetitionKey(FEN), 1);
 
+        zobristHash = Zobrist.computeHash(this);
+
         Input input = new Input(this);
         this.addMouseListener(input);
         this.addMouseMotionListener(input);
@@ -120,6 +124,8 @@ public class Board extends JPanel {
         this.scanner.enPassantEnable = other.scanner.enPassantEnable;
         this.scanner.enPassantCol = other.scanner.enPassantCol;
         this.scanner.enPassantRow = other.scanner.enPassantRow;
+
+        this.zobristHash = other.zobristHash;
     }
 
     public Piece getPiece(int col, int row) {
@@ -228,6 +234,7 @@ public class Board extends JPanel {
             return null;
 
         Move undoInfo = undoInfoForMove(move);
+        undoInfo.previousZobristHash = zobristHash;
 
         // Only change moveHistory on actual moves
         if (!simulate) {
@@ -256,6 +263,7 @@ public class Board extends JPanel {
         if (colorToMove == 0) fullMoveNumber++;
 
         updateFEN(move, simulate);
+        zobristHash = Zobrist.computeHash(this);
 
         if (!isAIThinking && !simulate)
             aiMove(move);
@@ -355,6 +363,7 @@ public class Board extends JPanel {
         colorToMove = undoInfo.oldColorToMove;
         FEN = undoInfo.previousFEN;
         threefold = undoInfo.previousThreefold;
+        zobristHash = undoInfo.previousZobristHash;
     }
 
     public void undoPromotion(Move move) {

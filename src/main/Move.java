@@ -14,6 +14,7 @@ public class Move {
     public String previousFEN;
     public String resultingFEN;
     public boolean previousThreefold;
+    public long previousZobristHash;
 
     public boolean wasCastling;
     public boolean wasEnPassant;
