@@ -20,8 +20,8 @@ public class Zobrist {
 
         for (int color = 0; color < 2; color++) {
             for (int piece = 0; piece < 6; piece++) {
-                for (int sq = 0; sq < 64; sq++) {
-                    PIECE_KEYS[color][piece][sq] = rng.nextLong();
+                for (int square = 0; square < 64; square++) {
+                    PIECE_KEYS[color][piece][square] = rng.nextLong();
                 }
             }
         }

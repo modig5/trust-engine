@@ -120,38 +120,26 @@ public class AI {
     }
 
     public int negaMax(int maxDepth, int alpha, int beta) {
-        if (stopRequested.get()) {
-            return 0;
-        }
+        if (stopRequested.get()) return 0;
+        if (maxDepth == 0) return evaluate();
 
-        if (maxDepth == 0) {
-            return evaluate();
-        }
+        // Early termination checks
+        if (board.scanner.insufficientMaterial()) return 0;
+        if (board.repetitionMap.getOrDefault(BoardFenHelper.repetitionKey(board.FEN), 0) >= 3)
+            return repetitionScore();
 
         // Probe transposition table
         long hash = board.zobristHash;
         int ttScore = tt.probe(hash, maxDepth, alpha, beta);
-        if (ttScore != Integer.MIN_VALUE) {
-            return ttScore;
-        }
+        if (ttScore != Integer.MIN_VALUE) return ttScore;
 
+        // Generate moves and check for checkmate/stalemate
         ArrayList<Move> moves = getAllValidMoves();
-
         if (moves.isEmpty()) {
             Piece king = board.scanner.findKing(board.colorToMove);
-            if (board.scanner.isInCheck(king.col, king.row, board.colorToMove)) {
-                return -kingVal - maxDepth;
-            } else {
-                return 0; // Stalemate
-            }
-        }
-
-        if (board.scanner.insufficientMaterial()) {
-            return 0;
-        }
-
-        if (board.repetitionMap.getOrDefault(BoardFenHelper.repetitionKey(board.FEN), 0) >= 3) {
-            return repetitionScore();
+            if (board.scanner.isInCheck(king.col, king.row, board.colorToMove))
+                return -kingVal - maxDepth; // Checkmate
+            return 0; // Stalemate
         }
 
         int originalAlpha = alpha;
@@ -310,15 +298,12 @@ public class AI {
         long startTime = System.currentTimeMillis();
         Move bestMove = search(board);
         long elapsed = System.currentTimeMillis() - startTime;
-        System.out.println("Search: " + elapsed + "ms");
 
         if (bestMove != null) {
             board.makeMove(bestMove, false);
 
             ponderMove = findPonderMove();
             if (ponderMove != null) {
-                System.out.print("Pondering: ");
-                Move.printMove(ponderMove);
                 startPonder();
             }
         } else {
