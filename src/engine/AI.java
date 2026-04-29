@@ -27,6 +27,9 @@ public class AI {
     int CONTEMPT_FACTOR = 15; // value for adjusting when to prefer repetition
     int WINNING_MARGIN = 70; // value that determines winning positions
 
+    private static final int MAX_KILLER_DEPTH = 16;
+    private final Move[][] killerMoves = new Move[MAX_KILLER_DEPTH][2];
+
     // Pondering state
     private Thread ponderThread;
     private AI ponderAIRef;
@@ -134,7 +137,7 @@ public class AI {
         if (ttScore != Integer.MIN_VALUE) return ttScore;
 
         // Generate moves and check for checkmate/stalemate
-        ArrayList<Move> moves = getAllValidMoves();
+        ArrayList<Move> moves = getAllValidMoves(maxDepth);
         if (moves.isEmpty()) {
             Piece king = board.scanner.findKing(board.colorToMove);
             if (board.scanner.isInCheck(king.col, king.row, board.colorToMove))
@@ -149,7 +152,12 @@ public class AI {
             int eval = -negaMax(maxDepth - 1, -beta, -alpha);
             board.undoMove(undoInfo);
 
+            // If cutoff save primary killer move and push back the other
             if (eval >= beta) {
+                if (move.capture == null && maxDepth < MAX_KILLER_DEPTH) {
+                    killerMoves[maxDepth][1] = killerMoves[maxDepth][0];
+                    killerMoves[maxDepth][0] = move;
+                }
                 tt.store(hash, maxDepth, beta, TranspositionTable.BETA);
                 return beta;
             }
@@ -320,6 +328,7 @@ public class AI {
         this.moveGenerator = new MoveGen(searchBoard);
 
         stopRequested.set(false);
+        for (Move[] slot : killerMoves) { slot[0] = null; slot[1] = null; }
         Move bestMove = null;
 
         ArrayList<Move> validMoves = getAllValidMoves();
@@ -478,17 +487,37 @@ public class AI {
 
 
     private ArrayList<Move> getAllValidMoves() {
+        // Skips killer moves by using -1 as depth (in getMoveScore)
+        return getAllValidMoves(-1);
+    }
+
+    private ArrayList<Move> getAllValidMoves(int depth) {
         ArrayList<Move> moves = moveGenerator.getAllValidMoves();
 
-        moves.sort((a, b) -> Integer.compare(getMoveScore(b), getMoveScore(a)));
+        moves.sort((a, b) -> Integer.compare(getMoveScore(b, depth), getMoveScore(a, depth)));
 
         return moves;
     }
 
-    private int getMoveScore(Move move) {
+    private boolean checkForKillerMove(Move move, Move killer) {
+        return killer != null
+                && move.col == killer.col && move.row == killer.row
+                && move.newCol == killer.newCol && move.newRow == killer.newRow;
+    }
+
+    private int getMoveScore(Move move, int depth) {
         int score = 0;
-        if (move.capture != null) score += convertPieceToMaterial(move.capture) * 1000;
+        // Captures with MVV-LVA (Most Valuable Victim - Least Valuable Aggressor)
+        if (move.capture != null)
+            score += convertPieceToMaterial(move.capture) * 100 - convertPieceToMaterial(move.piece);
+
         if (move.wasPromotion) score += 9000;
+
+        // Check for killer move (2 moves)
+        if (score == 0 && depth >= 0 && depth < MAX_KILLER_DEPTH) {
+            if (checkForKillerMove(move, killerMoves[depth][0])) score = 5000;
+            else if (checkForKillerMove(move, killerMoves[depth][1])) score = 4000;
+        }
         return score;
     }
 }
