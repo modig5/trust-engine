@@ -352,13 +352,16 @@ public class AI {
         return bestMove;
     }
 
-    // Find the opponent's best reply to the AI's last move
     private Move findPonderMove() {
-        Board copy = new Board(board);
-        AI tempAI = new AI(copy, true);
+        return findPonderMove(new Board(board));
+    }
+
+    // Find the opponent's best reply to the AI's last move
+    private Move findPonderMove(Board searchBoard) {
+        AI tempAI = new AI(searchBoard, true);
         tempAI.maxDepth = this.maxDepth;
 
-        MoveGen tempMoveGen = new MoveGen(copy);
+        MoveGen tempMoveGen = new MoveGen(searchBoard);
         ArrayList<Move> opponentMoves = tempMoveGen.getAllValidMoves();
         if (opponentMoves.isEmpty()) return null;
 
@@ -366,22 +369,26 @@ public class AI {
         int bestScore = Integer.MIN_VALUE;
 
         for (Move move : opponentMoves) {
-            Move undoInfo = copy.makeMove(move, true);
+            Move undoInfo = searchBoard.makeMove(move, true);
             int score = -tempAI.negaMax(maxDepth - 1, -Integer.MAX_VALUE, Integer.MAX_VALUE);
             if (score > bestScore) {
                 bestScore = score;
                 bestReply = move;
             }
-            copy.undoMove(undoInfo);
+            searchBoard.undoMove(undoInfo);
         }
 
         return bestReply;
     }
 
-    // Start pondering on a background thread using a board copy and separate AI
     private void startPonder() {
+        startPonder(board);
+    }
+
+    // Start pondering on a background thread using a board copy and separate AI
+    private void startPonder(Board sourceBoard) {
         // Copy the board and apply the predicted opponent reply
-        Board ponderBoard = new Board(board);
+        Board ponderBoard = new Board(sourceBoard);
         Piece ponderPiece = ponderBoard.getPiece(ponderMove.col, ponderMove.row);
         if (ponderPiece == null) return;
 
@@ -445,12 +452,13 @@ public class AI {
 
     // Find the next ponder move and start pondering (used after ponder hits)
     public void startNewPonder() {
+        // Copy the board on the calling thread to avoid ConcurrentModificationException
+        // when the human makes a move while the ponder thread is still setting up
+        Board snapshot = new Board(board);
         new Thread(() -> {
-            ponderMove = findPonderMove();
+            ponderMove = findPonderMove(snapshot);
             if (ponderMove != null) {
-                System.out.print("Pondering: ");
-                Move.printMove(ponderMove);
-                startPonder();
+                startPonder(snapshot);
             }
         }).start();
     }
