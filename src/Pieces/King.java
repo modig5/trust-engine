@@ -4,7 +4,6 @@ import main.Board;
 import main.Scanner;
 
 public class King extends Piece {
-    Scanner scanner = new Scanner(board);
     public King (Board board, int col, int row, int color) {
         super(board);
         this.col = col;
@@ -29,8 +28,8 @@ public class King extends Piece {
         int diffRow = Math.abs(newRow - this.row);
 
         if (diffCol == 2 && diffRow == 0) {
-            if (newCol == 2 && scanner.canCastleQueenSide(this.color)) return true;
-            else if (newCol == 6 && scanner.canCastleKingSide(this.color)) return true;
+            if (newCol == 2 && board.scanner.canCastleQueenSide(this.color)) return true;
+            else if (newCol == 6 && board.scanner.canCastleKingSide(this.color)) return true;
         }
 
         return (diffRow == 1 && diffCol == 1) || (diffRow == 0 && diffCol == 1)

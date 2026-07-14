@@ -500,10 +500,11 @@ public class Board extends JPanel {
         // Reset on captures and pawn pushes
         if (move.capture != null || move.piece.type == PieceType.PAWN)
             halfMoveCounter = 0;
-        else
+        else {
             halfMoveCounter++;
             if (halfMoveCounter == 100)
                 drawByHalfMoveClock = true;
+        }
     }
 
     // Helper functions to draw the pieces correctly (logic position -> visual position)
