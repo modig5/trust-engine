@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class AI {
-    public int maxDepth = 5;
+    public int maxDepth = 6;
     Board board;
     private MoveGen moveGenerator;
     private final OpeningBook book;

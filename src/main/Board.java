@@ -22,6 +22,10 @@ public class Board extends JPanel {
 
     public ArrayList<Piece> pieceList = new ArrayList<>();
     public Piece selectedPiece;
+    private Piece highlightedPiece;
+    private long highlightedPositionHash;
+    private boolean highlightedThreefold;
+    private long highlightedSquares;
     public int colorToMove = 0;
     public Scanner scanner = new Scanner(this);
 
@@ -680,9 +684,37 @@ public class Board extends JPanel {
         repaint();
     }
     
+    // Logical squares stay valid while dragging or flipping the view. Position
+    // hashes include side, castling and en passant; threefold is history-dependent.
+    private long getHighlightedSquares() {
+        if (selectedPiece == null) {
+            highlightedPiece = null;
+            highlightedSquares = 0;
+            return 0;
+        }
+        if (highlightedPiece != selectedPiece || highlightedPositionHash != zobristHash
+                || highlightedThreefold != threefold) {
+            highlightedSquares = 0;
+            if (getPiece(selectedPiece.col, selectedPiece.row) == selectedPiece) {
+                for (int row = 0; row < MAX_ROWS; row++) {
+                    for (int col = 0; col < MAX_COLS; col++) {
+                        if (isValidMove(new Move(this, selectedPiece, col, row))) {
+                            highlightedSquares |= 1L << (row * MAX_COLS + col);
+                        }
+                    }
+                }
+            }
+            highlightedPiece = selectedPiece;
+            highlightedPositionHash = zobristHash;
+            highlightedThreefold = threefold;
+        }
+        return highlightedSquares;
+    }
+
     @Override
     public void paintComponent(Graphics graphics) {
         super.paintComponent(graphics);
+        long destinations = getHighlightedSquares();
 
         for (int i = 0; i < MAX_ROWS; i++) {
             for (int j = 0; j < MAX_COLS; j++) {
@@ -716,14 +748,12 @@ public class Board extends JPanel {
             graphics.setColor(new Color(246, 246, 105, 180));
             graphics.fillRect(viewCol(selectedPiece.col) * SQUARE_SIZE, viewRow(selectedPiece.row) * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
 
-            // Valid destination squares
-            for (int i = 0; i < MAX_ROWS; i++) {
-                for (int j = 0; j < MAX_COLS; j++) {
-                    if (isValidMove(new Move(this, selectedPiece, j, i))) {
-                        graphics.setColor(new Color(66, 127, 46, 166));
-                        graphics.fillRect(viewCol(j) * SQUARE_SIZE, viewRow(i) * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-                    }
-                }
+            graphics.setColor(new Color(66, 127, 46, 166));
+            while (destinations != 0) {
+                int square = Long.numberOfTrailingZeros(destinations);
+                destinations &= destinations - 1;
+                graphics.fillRect(viewCol(square % MAX_COLS) * SQUARE_SIZE,
+                        viewRow(square / MAX_COLS) * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
             }
         }
 
