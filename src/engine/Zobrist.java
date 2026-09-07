@@ -77,6 +77,12 @@ public class Zobrist {
             hash ^= pieceKey(piece.color, piece.type, piece.col, piece.row);
         }
 
+        return hash ^ stateHash(board);
+    }
+
+    // Only side, castling and en passant state; constant-time square lookups.
+    public static long stateHash(Board board) {
+        long hash = 0;
         if (board.colorToMove == 1) {
             hash ^= SIDE_TO_MOVE_KEY;
         }

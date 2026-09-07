@@ -202,20 +202,18 @@ public class Scanner {
         if (board.isEnPassant(move)) {
             int squareDiff = move.piece.color == 0 ? 1 : -1;
             epCaptured = board.getPiece(move.newCol, move.newRow + squareDiff);
-            if (epCaptured != null) board.pieceList.remove(epCaptured);
+            if (epCaptured != null) board.removePiece(epCaptured);
         }
 
-        move.piece.col = move.newCol;
-        move.piece.row = move.newRow;
-        if (capturedPiece != null) board.pieceList.remove(capturedPiece);
+        if (capturedPiece != null) board.removePiece(capturedPiece);
+        board.movePiece(move.piece, move.newCol, move.newRow);
 
         Piece king = findKing(move.piece.color);
         boolean inCheck = isInCheck(king.col, king.row, king.color);
 
-        move.piece.col = oldCol;
-        move.piece.row = oldRow;
-        if (capturedPiece != null) board.pieceList.add(capturedPiece);
-        if (epCaptured != null) board.pieceList.add(epCaptured);
+        board.movePiece(move.piece, oldCol, oldRow);
+        if (capturedPiece != null) board.addPiece(capturedPiece);
+        if (epCaptured != null) board.addPiece(epCaptured);
 
         return inCheck;
     }

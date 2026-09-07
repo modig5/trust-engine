@@ -12,7 +12,8 @@ public class Move {
     public int enPassantRow;
     public boolean firstMove;
     public String previousFEN;
-    public String resultingFEN;
+    public int previousHalfMoveCounter;
+    public boolean previousDrawByHalfMoveClock;
     public boolean previousThreefold;
     public long previousZobristHash;
 

@@ -3,7 +3,6 @@ package engine;
 import Pieces.Piece;
 import Pieces.PieceType;
 import main.Board;
-import main.BoardFenHelper;
 import main.Move;
 
 import java.util.ArrayList;
@@ -11,7 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class AI {
-    public int maxDepth = 4;
+    public int maxDepth = 5;
     Board board;
     private MoveGen moveGenerator;
     private final OpeningBook book;
@@ -128,7 +127,7 @@ public class AI {
 
         // Early termination checks
         if (board.scanner.insufficientMaterial()) return 0;
-        if (board.repetitionMap.getOrDefault(BoardFenHelper.repetitionKey(board.FEN), 0) >= 3)
+        if (board.repetitionMap.getOrDefault(board.zobristHash, 0) >= 3)
             return repetitionScore();
 
         // Probe transposition table
@@ -283,7 +282,7 @@ public class AI {
     }
 
     public void makeAIMove() {
-        if (board.repetitionMap.getOrDefault(BoardFenHelper.repetitionKey(board.FEN), 0) >= 3) {
+        if (board.repetitionMap.getOrDefault(board.zobristHash, 0) >= 3) {
             return;
         }
 
@@ -333,19 +332,21 @@ public class AI {
 
         ArrayList<Move> validMoves = getAllValidMoves();
 
-        for (int d = 0; d < maxDepth; d++) {
+        for (int d = 1; d <= maxDepth; d++) {
             Move iterationBestMove = null;
             int iterationScore = Integer.MIN_VALUE;
+            int rootAlpha = -Integer.MAX_VALUE;
 
             bestMoveToFront(bestMove, validMoves);
 
             for (Move move : validMoves) {
                 Move undoInfo = searchBoard.makeMove(move, true);
-                int score = -negaMax(maxDepth - 1, -Integer.MAX_VALUE, Integer.MAX_VALUE);
+                int score = -negaMax(d - 1, -Integer.MAX_VALUE, -rootAlpha);
                 if (score > iterationScore) {
                     iterationScore = score;
                     iterationBestMove = move;
                 }
+                rootAlpha = Math.max(rootAlpha, score);
                 searchBoard.undoMove(undoInfo);
 
                 if (stopRequested.get()) break;

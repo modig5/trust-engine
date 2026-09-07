@@ -16,7 +16,8 @@ public class Board extends JPanel {
     public static final int MAX_ROWS = 8;
     public static final int MAX_COLS = 8;
 
-    public String FEN = "";
+    private String cachedFen;
+    private final Piece[] squares = new Piece[64];
     public long zobristHash;
 
     public ArrayList<Piece> pieceList = new ArrayList<>();
@@ -35,8 +36,8 @@ public class Board extends JPanel {
     public int aiColor = 1;
     public boolean isBoardFlipped = false;
 
-    // Map for threefold repetition: FEN string -> count of occurrences
-    public Map<String, Integer> repetitionMap = new HashMap<>();
+    // Position hash -> occurrence count, excluding move counters.
+    public Map<Long, Integer> repetitionMap = new HashMap<>();
     public boolean threefold = false;
 
     // Counter for moves (50-move rule)
@@ -85,12 +86,10 @@ public class Board extends JPanel {
         }
 
         // Store the full FEN via generateFEN
-        FEN = generateFEN(enPassantTarget, castlingRights);
-
-        // Add first position to repetition map (without move counters)
-        repetitionMap.put(BoardFenHelper.repetitionKey(FEN), 1);
+        cachedFen = generateFEN(enPassantTarget, castlingRights);
 
         zobristHash = Zobrist.computeHash(this);
+        repetitionMap.put(zobristHash, 1);
 
         Input input = new Input(this);
         this.addMouseListener(input);
@@ -105,7 +104,7 @@ public class Board extends JPanel {
     // Used by pondering thread
     public Board(Board other) {
         this.colorToMove = other.colorToMove;
-        this.FEN = other.FEN;
+        this.cachedFen = other.cachedFen;
         this.halfMoveCounter = other.halfMoveCounter;
         this.fullMoveNumber = other.fullMoveNumber;
         this.threefold = other.threefold;
@@ -116,7 +115,7 @@ public class Board extends JPanel {
 
         // Deep copy pieces, pointing at this board
         for (Piece piece : other.pieceList) {
-            this.pieceList.add(piece.copy(this));
+            addPiece(piece.copy(this));
         }
 
         // Copy scanner state
@@ -129,31 +128,62 @@ public class Board extends JPanel {
     }
 
     public Piece getPiece(int col, int row) {
-       for (Piece piece : pieceList) {
-           if (piece.col == col && piece.row == row) {
-               return piece;
-           }
-       } return null;
+        if (col < 0 || col >= 8 || row < 0 || row >= 8) return null;
+        return squares[row * 8 + col];
+    }
+
+    // Keep occupancy and the piece component of the hash together. Scanner also
+    // uses these helpers for temporary legality checks, then restores the pieces.
+    void addPiece(Piece piece) {
+        pieceList.add(piece);
+        squares[piece.row * 8 + piece.col] = piece;
+        zobristHash ^= Zobrist.pieceKey(piece.color, piece.type, piece.col, piece.row);
+    }
+
+    void removePiece(Piece piece) {
+        if (piece == null || !pieceList.remove(piece)) return;
+        int square = piece.row * 8 + piece.col;
+        if (squares[square] == piece) squares[square] = null;
+        zobristHash ^= Zobrist.pieceKey(piece.color, piece.type, piece.col, piece.row);
+    }
+
+    void movePiece(Piece piece, int col, int row) {
+        squares[piece.row * 8 + piece.col] = null;
+        zobristHash ^= Zobrist.pieceKey(piece.color, piece.type, piece.col, piece.row);
+        piece.col = col;
+        piece.row = row;
+        squares[row * 8 + col] = piece;
+        zobristHash ^= Zobrist.pieceKey(piece.color, piece.type, col, row);
+    }
+
+    /** Serialize the current position only when a caller needs FEN. */
+    public String getFEN() {
+        if (cachedFen == null) {
+            cachedFen = generateFEN(computeEnPassantTarget(colorToMove ^ 1), computeCastlingString());
+        }
+        return cachedFen;
     }
 
     public void capture(Move move) {
-        pieceList.remove(move.capture);
+        removePiece(move.capture);
     }
 
     public void promotion(Move move, boolean simulate) {
-        pieceList.remove(move.piece);
+        removePiece(move.piece);
 
         // If promotionPiece is specified in the move, use it
         if (move.promotionPiece != null) {
             Piece promotedPiece = createPromotedPieceByType(move.promotionPiece, move.newCol, move.newRow, move.piece.color);
+            promotedPiece.isFirstMove = false;
             positionPieceOnBoard(promotedPiece);
-            pieceList.add(promotedPiece);
+            addPiece(promotedPiece);
         }
         // Otherwise just promote to queen
         else if (simulate || isAIThinking) {
             Piece promotedPiece = new Queen(this, move.newCol, move.newRow, move.piece.color);
+            promotedPiece.isFirstMove = false;
             positionPieceOnBoard(promotedPiece);
-            pieceList.add(promotedPiece);
+            addPiece(promotedPiece);
         }
         else {
             String[] options = {"Queen", "Rook", "Bishop", "Knight"};
@@ -168,8 +198,9 @@ public class Board extends JPanel {
                     options[0]
             );
             Piece promotedPiece = createPromotedPiece(choice, move.newCol, move.newRow, move.piece.color);
+            promotedPiece.isFirstMove = false;
             positionPieceOnBoard(promotedPiece);
-            pieceList.add(promotedPiece);
+            addPiece(promotedPiece);
         }
     }
 
@@ -197,16 +228,14 @@ public class Board extends JPanel {
         if (move.newCol == 2) {
             Piece rook = getPiece(0, move.row);
             if (rook != null) {
-                rook.col = 3;
-                rook.row = move.row;
+                movePiece(rook, 3, move.row);
                 positionPieceOnBoard(rook);
                 rook.isFirstMove = false;
             }
         } else {
             Piece rook = getPiece(7, move.row);
             if (rook != null) {
-                rook.col = 5;
-                rook.row = move.row;
+                movePiece(rook, 5, move.row);
                 positionPieceOnBoard(rook);
                 rook.isFirstMove = false;
             }
@@ -222,7 +251,7 @@ public class Board extends JPanel {
 
         Piece pawn = getPiece(move.newCol, move.newRow + squareDiff);
         move.capture = pawn;
-        pieceList.remove(pawn);
+        removePiece(pawn);
     }
 
     public void firstMove(Piece piece) {
@@ -235,6 +264,7 @@ public class Board extends JPanel {
 
         Move undoInfo = undoInfoForMove(move);
         undoInfo.previousZobristHash = zobristHash;
+        long previousStateHash = Zobrist.stateHash(this);
 
         // Only change moveHistory on actual moves
         if (!simulate) {
@@ -247,11 +277,11 @@ public class Board extends JPanel {
             originalMoves.add(move);
             moveHistoryIndex++;
 
-            updateHalfMoveCounter(move);
             lastSquareMoveFrom = move.col + move.row * MAX_COLS;
             lastSquareMoveTo = move.newCol + move.newRow * MAX_COLS;
         }
 
+        updateHalfMoveCounter(move);
         handleFirstMove(move.piece);
         executeMove(move);
         handleSpecialMoves(move, simulate);
@@ -262,8 +292,11 @@ public class Board extends JPanel {
         colorToMove = colorToMove ^ 1;
         if (colorToMove == 0) fullMoveNumber++;
 
-        updateFEN(move, simulate);
-        zobristHash = Zobrist.computeHash(this);
+        zobristHash ^= previousStateHash ^ Zobrist.stateHash(this);
+        cachedFen = null;
+        int count = repetitionMap.getOrDefault(zobristHash, 0) + 1;
+        repetitionMap.put(zobristHash, count);
+        if (!simulate && count >= 3) threefold = true;
 
         if (!isAIThinking && !simulate)
             aiMove(move);
@@ -294,7 +327,9 @@ public class Board extends JPanel {
         undoInfo.enPassantEnabled = scanner.enPassantEnable;
         undoInfo.enPassantCol = scanner.enPassantCol;
         undoInfo.enPassantRow = scanner.enPassantRow;
-        undoInfo.previousFEN = FEN;
+        undoInfo.previousFEN = cachedFen;
+        undoInfo.previousHalfMoveCounter = halfMoveCounter;
+        undoInfo.previousDrawByHalfMoveClock = drawByHalfMoveClock;
         undoInfo.previousThreefold = threefold;
 
         if (isPawnPromotion(move)) {
@@ -324,10 +359,8 @@ public class Board extends JPanel {
 
     public void undoMove(Move undoInfo) {
         // Roll back repetition count for the position produced by this move
-        String fenToDecrement = undoInfo.resultingFEN != null ? undoInfo.resultingFEN : FEN;
-        String repetitionKeyToDecrement = BoardFenHelper.repetitionKey(fenToDecrement);
+        long repetitionKeyToDecrement = zobristHash;
         int count = repetitionMap.getOrDefault(repetitionKeyToDecrement, 0);
-        // If count is 1 we can decrement, otherwise remove the entry entirely (it was never repeated before)
         if (count > 1) {
             repetitionMap.put(repetitionKeyToDecrement, count - 1);
         } else {
@@ -344,8 +377,7 @@ public class Board extends JPanel {
             undoCastling(undoInfo);
 
         // Restore piece position
-        undoInfo.piece.col = undoInfo.col;
-        undoInfo.piece.row = undoInfo.row;
+        movePiece(undoInfo.piece, undoInfo.col, undoInfo.row);
         positionPieceOnBoard(undoInfo.piece);
 
         undoInfo.piece.isFirstMove = undoInfo.firstMove;
@@ -355,13 +387,15 @@ public class Board extends JPanel {
 
         // Restore captured piece if any (skip for en passant - already handled above)
         if (undoInfo.capture != null && !undoInfo.wasEnPassant) {
-            pieceList.add(undoInfo.capture);
+            addPiece(undoInfo.capture);
         }
 
         // Restore color to move
         if (colorToMove == 0) fullMoveNumber--;
         colorToMove = undoInfo.oldColorToMove;
-        FEN = undoInfo.previousFEN;
+        cachedFen = undoInfo.previousFEN;
+        halfMoveCounter = undoInfo.previousHalfMoveCounter;
+        drawByHalfMoveClock = undoInfo.previousDrawByHalfMoveClock;
         threefold = undoInfo.previousThreefold;
         zobristHash = undoInfo.previousZobristHash;
     }
@@ -370,14 +404,14 @@ public class Board extends JPanel {
         // remove promoted piece and add back pawn
         Piece prom = getPiece(move.newCol, move.newRow);
         if (prom != null) {
-            pieceList.remove(prom);
-            pieceList.add(move.piece);
+            removePiece(prom);
+            addPiece(move.piece);
         }
     }
 
     public void undoEnPassant(Move move) {
         // Restore captured pawn
-        pieceList.add(move.capture);
+        addPiece(move.capture);
     }
 
     public void undoCastling(Move move) {
@@ -386,8 +420,7 @@ public class Board extends JPanel {
             // Queenside castling - move rook back to a-file
             Piece rook = getPiece(3, move.row);
             if (rook != null) {
-                rook.col = 0;
-                rook.row = move.row;
+                movePiece(rook, 0, move.row);
                 positionPieceOnBoard(rook);
                 rook.isFirstMove = move.rookFirstMove;
             }
@@ -396,8 +429,7 @@ public class Board extends JPanel {
             // Kingside castling - move rook back to h-file
             Piece rook = getPiece(5, move.row);
             if (rook != null) {
-                rook.col = 7;
-                rook.row = move.row;
+                movePiece(rook, 7, move.row);
                 positionPieceOnBoard(rook);
                 rook.isFirstMove = move.rookFirstMove;
             }
@@ -490,8 +522,7 @@ public class Board extends JPanel {
     }
 
     public void executeMove(Move move) {
-        move.piece.col = move.newCol;
-        move.piece.row = move.newRow;
+        movePiece(move.piece, move.newCol, move.newRow);
         // Update the position on visual board
         positionPieceOnBoard(move.piece);
     }
@@ -500,11 +531,8 @@ public class Board extends JPanel {
         // Reset on captures and pawn pushes
         if (move.capture != null || move.piece.type == PieceType.PAWN)
             halfMoveCounter = 0;
-        else {
-            halfMoveCounter++;
-            if (halfMoveCounter == 100)
-                drawByHalfMoveClock = true;
-        }
+        else halfMoveCounter++;
+        drawByHalfMoveClock = halfMoveCounter >= 100;
     }
 
     // Helper functions to draw the pieces correctly (logic position -> visual position)
@@ -555,6 +583,9 @@ public class Board extends JPanel {
     // load position from FEN string
     public void addPieces(String FEN) {
         pieceList.clear();
+        java.util.Arrays.fill(squares, null);
+        zobristHash = 0;
+        cachedFen = null;
         int row = 0;
         int col = 0;
         int color;
@@ -576,22 +607,22 @@ public class Board extends JPanel {
 
                 switch (piece) {
                     case 'r':
-                        pieceList.add(new Rook(this,col,row,color));
+                        addPiece(new Rook(this,col,row,color));
                         break;
                     case 'n':
-                        pieceList.add(new Knight(this,col,row,color));
+                        addPiece(new Knight(this,col,row,color));
                         break;
                     case 'b':
-                        pieceList.add(new Bishop(this,col,row,color));
+                        addPiece(new Bishop(this,col,row,color));
                         break;
                     case 'q':
-                        pieceList.add(new Queen(this,col,row,color));
+                        addPiece(new Queen(this,col,row,color));
                         break;
                     case 'k':
-                        pieceList.add(new King(this,col,row,color));
+                        addPiece(new King(this,col,row,color));
                         break;
                     case 'p':
-                        pieceList.add(new Pawn(this,col,row,color));
+                        addPiece(new Pawn(this,col,row,color));
                         break;
                 }
                 col++;
@@ -627,26 +658,6 @@ public class Board extends JPanel {
         return BoardFenHelper.generateFEN(this, enPassantTarget, castlingRights);
     }
 
-    public void updateFEN(Move move, boolean simulate) {
-        // Compute castling rights and en passant target square based on the move
-        String castlingRights = computeCastlingString();
-        String enPassantTarget = computeEnPassantTarget(move.piece.color);
-        FEN = generateFEN(enPassantTarget, castlingRights);
-        move.resultingFEN = FEN;
-
-        String repetitionKey = BoardFenHelper.repetitionKey(FEN);
-        int count = repetitionMap.getOrDefault(repetitionKey, 0) + 1;
-        repetitionMap.put(repetitionKey, count);
-
-        if (!simulate && count >= 3) {
-            threefold = true;
-        }
-    }
-
-    public void updateRepetitionMap(String FEN) {
-        BoardFenHelper.updateRepetitionMap(this, FEN);
-    }
-
     public void undoLastMove() {
         if (moveHistoryIndex < 0) return;
         ai.stopPonder();
@@ -661,6 +672,7 @@ public class Board extends JPanel {
         Move move = originalMoves.get(moveHistoryIndex + 1);
         // Use simulate=true so it doesn't re-add to history
         makeMove(move, true);
+        threefold = repetitionMap.getOrDefault(zobristHash, 0) >= 3;
         // Because of simulate we need to update visuals manually
         lastSquareMoveFrom = move.col + move.row * MAX_COLS;
         lastSquareMoveTo = move.newCol + move.newRow * MAX_COLS;

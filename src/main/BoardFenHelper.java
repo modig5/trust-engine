@@ -78,21 +78,21 @@ public final class BoardFenHelper {
         // White king castling rights
         Piece whiteKing = board.getPiece(4, 7);
         if (whiteKing != null && whiteKing.type == PieceType.KING && whiteKing.isFirstMove) {
-            Piece whiteRookA = board.getPiece(0, 7);
-            if (whiteRookA != null && whiteRookA.type == PieceType.ROOK && whiteRookA.isFirstMove)
+            Piece whiteKingSideRook = board.getPiece(7, 7);
+            if (whiteKingSideRook != null && whiteKingSideRook.type == PieceType.ROOK && whiteKingSideRook.isFirstMove)
                 sb.append('K');
-            Piece whiteRookH = board.getPiece(7, 7);
-            if (whiteRookH != null && whiteRookH.type == PieceType.ROOK && whiteRookH.isFirstMove)
+            Piece whiteQueenSideRook = board.getPiece(0, 7);
+            if (whiteQueenSideRook != null && whiteQueenSideRook.type == PieceType.ROOK && whiteQueenSideRook.isFirstMove)
                 sb.append('Q');
         }
 
         Piece blackKing = board.getPiece(4, 0);
         if (blackKing != null && blackKing.type == PieceType.KING && blackKing.isFirstMove) {
-            Piece blackRookA = board.getPiece(0, 0);
-            if (blackRookA != null && blackRookA.type == PieceType.ROOK && blackRookA.isFirstMove)
+            Piece blackKingSideRook = board.getPiece(7, 0);
+            if (blackKingSideRook != null && blackKingSideRook.type == PieceType.ROOK && blackKingSideRook.isFirstMove)
                 sb.append('k');
-            Piece blackRookH = board.getPiece(7, 0);
-            if (blackRookH != null && blackRookH.type == PieceType.ROOK && blackRookH.isFirstMove) {
+            Piece blackQueenSideRook = board.getPiece(0, 0);
+            if (blackQueenSideRook != null && blackQueenSideRook.type == PieceType.ROOK && blackQueenSideRook.isFirstMove) {
                 sb.append('q');
             }
         }
@@ -161,13 +161,4 @@ public final class BoardFenHelper {
         return parts[0] + " " + parts[1] + " " + parts[2] + " " + parts[3];
     }
 
-    public static void updateRepetitionMap(Board board, String fen) {
-        String key = repetitionKey(fen);
-        int count = board.repetitionMap.getOrDefault(key, 0) + 1;
-        board.repetitionMap.put(key, count);
-        System.out.println(count);
-        if (count >= 3) {
-            board.threefold = true;
-        }
-    }
 }
