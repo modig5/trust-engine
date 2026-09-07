@@ -145,11 +145,19 @@ public class AI {
         }
 
         int originalAlpha = alpha;
+        int bestScore = Integer.MIN_VALUE;
+        Move bestMove = null;
 
         for (Move move : moves) {
             Move undoInfo = board.makeMove(move, true);
             int eval = -negaMax(maxDepth - 1, -beta, -alpha);
             board.undoMove(undoInfo);
+            if (stopRequested.get()) return 0;
+
+            if (eval > bestScore) {
+                bestScore = eval;
+                bestMove = move;
+            }
 
             // If cutoff save primary killer move and push back the other
             if (eval >= beta) {
@@ -157,7 +165,7 @@ public class AI {
                     killerMoves[maxDepth][1] = killerMoves[maxDepth][0];
                     killerMoves[maxDepth][0] = move;
                 }
-                tt.store(hash, maxDepth, beta, TranspositionTable.BETA);
+                tt.store(hash, maxDepth, beta, TranspositionTable.BETA, TranspositionTable.encodeMove(move));
                 return beta;
             }
 
@@ -166,7 +174,7 @@ public class AI {
 
         // Store in transposition table
         int flag = (alpha <= originalAlpha) ? TranspositionTable.ALPHA : TranspositionTable.EXACT;
-        tt.store(hash, maxDepth, alpha, flag);
+        tt.store(hash, maxDepth, alpha, flag, TranspositionTable.encodeMove(bestMove));
 
         return alpha;
     }
@@ -184,15 +192,15 @@ public class AI {
     }
     
     public int evaluate() {
-        int whiteScore = countMaterial(0);
-        int blackScore = countMaterial(1);
+        int whiteScore = 0;
+        int blackScore = 0;
 
         for (Piece piece : board.pieceList) {
-            int posValue = countPositionalValue(piece);
+            int value = convertPieceToMaterial(piece) + countPositionalValue(piece);
             if (piece.color == 0)
-                whiteScore += posValue;
+                whiteScore += value;
             else
-                blackScore += posValue;
+                blackScore += value;
         }
 
         // for endgames
@@ -496,6 +504,17 @@ public class AI {
         ArrayList<Move> moves = moveGenerator.getAllValidMoves();
 
         moves.sort((a, b) -> Integer.compare(getMoveScore(b, depth), getMoveScore(a, depth)));
+
+        int hashMove = tt.getBestMove(board.zobristHash);
+        if (hashMove != TranspositionTable.NO_MOVE) {
+            // Match against freshly generated legal moves, including underpromotions.
+            for (int i = 0; i < moves.size(); i++) {
+                if (TranspositionTable.encodeMove(moves.get(i)) == hashMove) {
+                    bestMoveToFront(moves.get(i), moves);
+                    break;
+                }
+            }
+        }
 
         return moves;
     }
