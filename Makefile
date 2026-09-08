@@ -14,10 +14,13 @@ JAR_TOOL ?= jar
 
 # Override if you need an older/newer JDK target.
 JAVA_RELEASE ?= 21
+PROFILE_DEPTH ?= 7
+PROFILE_RUNS ?= 1
+PROFILE_WARMUPS ?= 2
 
 JAVA_SOURCES := $(shell find $(SRC_DIR) -name '*.java')
 
-.PHONY: all compile jar run run-jar perft clean help
+.PHONY: all compile jar run run-jar perft profile clean help
 
 all: jar
 
@@ -45,6 +48,9 @@ run-jar: jar
 perft: compile
 	$(JAVA) -cp "$(CLASSES_DIR)" tests.Perft
 
+profile: compile
+	$(JAVA) -Xms256m -Xmx512m -Djava.awt.headless=true -cp "$(CLASSES_DIR)" engine.SearchProfile $(PROFILE_DEPTH) $(PROFILE_RUNS) $(PROFILE_WARMUPS)
+
 clean:
 	rm -rf "$(BUILD_DIR)"
 
@@ -57,7 +63,9 @@ help:
 		"  make run        Run from class files" \
 		"  make run-jar    Run the jar" \
 		"  make perft      Run perft tests" \
+		"  make profile    Profile search CPU, allocations and GC with JFR" \
 		"  make clean      Remove build output" \
 		"" \
 		"Vars (override like: make jar JAVA_RELEASE=17):" \
-		"  MAIN, JAVA, JAVAC, JAR_TOOL, JAVA_RELEASE"
+		"  MAIN, JAVA, JAVAC, JAR_TOOL, JAVA_RELEASE" \
+		"  PROFILE_DEPTH=7, PROFILE_RUNS=1, PROFILE_WARMUPS=2"

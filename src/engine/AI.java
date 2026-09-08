@@ -114,8 +114,8 @@ public class AI {
         this.book = new OpeningBook("src/resources/Opening.bin", board);
     }
 
-    // Lightweight constructor for pondering (no opening book)
-    private AI(Board board, boolean searchOnly) {
+    // Search-only constructor for pondering and profiling (no opening book).
+    AI(Board board, boolean searchOnly) {
         this.board = board;
         this.moveGenerator = new MoveGen(board);
         this.book = null;
@@ -345,7 +345,7 @@ public class AI {
     }
 
     // Core search: iterative deepening negamax on the given board
-    private Move search(Board searchBoard) {
+    Move search(Board searchBoard) {
         Board originalBoard = this.board;
         MoveGen originalMoveGen = this.moveGenerator;
 
