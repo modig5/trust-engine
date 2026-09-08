@@ -153,6 +153,9 @@ public class Input extends MouseAdapter implements KeyListener {
             dragging = true;
         }
 
+        // Small pointer movements during a click must not move the piece.
+        if (!dragging) return;
+
         board.selectedPiece.x = e.getX() - SQUARE_SIZE / 2;
         board.selectedPiece.y = e.getY() - SQUARE_SIZE / 2;
         board.repaint();
