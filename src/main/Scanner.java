@@ -176,6 +176,46 @@ public class Scanner {
         return false;
     }
 
+    /**
+     * Origins that need no king-safety probe for ordinary non-king moves.
+     * Returns zero while in check. Compute once per generation call, before
+     * any occupancy probes; the mask must never survive a position change.
+     */
+    public long safeNonKingOrigins(int color) {
+        Piece king = findKing(color);
+        int square = king.row * 8 + king.col;
+        long pawns = color == 0 ? AttackTables.whitePawnAttacks[square] : AttackTables.blackPawnAttacks[square];
+        if (hasAttacker(pawns, color, PieceType.PAWN)
+                || hasAttacker(AttackTables.knightAttacks[square], color, PieceType.KNIGHT)
+                || hasAttacker(AttackTables.kingAttacks[square], color, PieceType.KING)) return 0;
+
+        long pinned = 0;
+        for (int direction : AttackTables.QUEEN_DIRECTIONS) {
+            int previous = square;
+            int blocker = -1;
+            for (int next = square + direction; next >= 0 && next < 64; next += direction) {
+                if (!BitBoard.isValidDirection(previous, next, direction)) break;
+                Piece piece = board.getPiece(next % 8, next / 8);
+                if (piece != null) {
+                    if (piece.color == color) {
+                        if (blocker >= 0) break;
+                        blocker = next;
+                    } else {
+                        boolean straight = Math.abs(direction) == 1 || Math.abs(direction) == 8;
+                        if (piece.type == PieceType.QUEEN
+                                || piece.type == (straight ? PieceType.ROOK : PieceType.BISHOP)) {
+                            if (blocker < 0) return 0; // Direct sliding check.
+                            pinned |= 1L << blocker;
+                        }
+                        break;
+                    }
+                }
+                previous = next;
+            }
+        }
+        return ~pinned & ~(1L << square);
+    }
+
     public boolean wouldBeInCheck(Move move) {
         Piece capturedPiece = board.getPiece(move.newCol, move.newRow);
         boolean enPassant = board.isEnPassant(move);
