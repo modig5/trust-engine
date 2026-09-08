@@ -123,16 +123,24 @@ public class AI {
 
     public int negaMax(int maxDepth, int alpha, int beta) {
         if (stopRequested.get()) return 0;
-        if (maxDepth == 0) return evaluate();
-
         // Early termination checks
         if (board.scanner.insufficientMaterial()) return 0;
-        if (board.repetitionMap.getOrDefault(board.zobristHash, 0) >= 3)
+        if (board.repetitionMap.getOrDefault(board.repetitionHash, 0) >= 3)
             return repetitionScore();
+
+        if (maxDepth == 0 || board.halfMoveCounter >= 100) {
+            if (!moveGenerator.hasLegalMove()) {
+                Piece king = board.scanner.findKing(board.colorToMove);
+                return board.scanner.isInCheck(king.col, king.row, board.colorToMove)
+                        ? -kingVal - maxDepth : 0;
+            }
+            return board.halfMoveCounter >= 100 ? 0 : evaluate();
+        }
 
         // Probe transposition table
         long hash = board.zobristHash;
-        int ttScore = tt.probe(hash, maxDepth, alpha, beta);
+        boolean cacheScore = canCacheScore(maxDepth);
+        int ttScore = cacheScore ? tt.probe(hash, maxDepth, alpha, beta) : Integer.MIN_VALUE;
         if (ttScore != Integer.MIN_VALUE) return ttScore;
 
         // Generate moves and check for checkmate/stalemate
@@ -165,7 +173,8 @@ public class AI {
                     killerMoves[maxDepth][1] = killerMoves[maxDepth][0];
                     killerMoves[maxDepth][0] = move;
                 }
-                tt.store(hash, maxDepth, beta, TranspositionTable.BETA, TranspositionTable.encodeMove(move));
+                tt.store(hash, maxDepth, beta, cacheScore ? TranspositionTable.BETA : TranspositionTable.MOVE_ONLY,
+                        TranspositionTable.encodeMove(move));
                 return beta;
             }
 
@@ -174,9 +183,18 @@ public class AI {
 
         // Store in transposition table
         int flag = (alpha <= originalAlpha) ? TranspositionTable.ALPHA : TranspositionTable.EXACT;
-        tt.store(hash, maxDepth, alpha, flag, TranspositionTable.encodeMove(bestMove));
+        tt.store(hash, maxDepth, alpha, cacheScore ? flag : TranspositionTable.MOVE_ONLY,
+                TranspositionTable.encodeMove(bestMove));
 
         return alpha;
+    }
+
+    // The position key omits draw history. Reuse scores only when no rule draw
+    // can occur in this horizon; keep move hints for all other positions.
+    private boolean canCacheScore(int depth) {
+        if (depth >= 4 || board.halfMoveCounter + depth >= 100) return false;
+        for (int count : board.repetitionMap.values()) if (count > 1) return false;
+        return true;
     }
 
     public int repetitionScore() {
@@ -290,7 +308,7 @@ public class AI {
     }
 
     public void makeAIMove() {
-        if (board.repetitionMap.getOrDefault(board.zobristHash, 0) >= 3) {
+        if (board.repetitionMap.getOrDefault(board.repetitionHash, 0) >= 3) {
             return;
         }
 
@@ -531,7 +549,7 @@ public class AI {
         if (move.capture != null)
             score += convertPieceToMaterial(move.capture) * 100 - convertPieceToMaterial(move.piece);
 
-        if (move.wasPromotion) score += 9000;
+        if (move.promotionPiece != null) score += 9000;
 
         // Check for killer move (2 moves)
         if (score == 0 && depth >= 0 && depth < MAX_KILLER_DEPTH) {

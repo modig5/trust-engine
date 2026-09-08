@@ -7,6 +7,7 @@ public class TranspositionTable {
     public static final int EXACT = 0;
     public static final int ALPHA = 1; // upper bound (failed low)
     public static final int BETA = 2;  // lower bound (failed high)
+    public static final int MOVE_ONLY = 3;
 
     private final long[] keys;
     private final int[] depths;
@@ -23,10 +24,11 @@ public class TranspositionTable {
         this.scores = new int[size];
         this.flags = new int[size];
         this.bestMoves = new int[size];
+        java.util.Arrays.fill(depths, -1);
     }
 
     private int index(long hash) {
-        return (int) (Math.abs(hash) % size);
+        return (int) ((hash & Long.MAX_VALUE) % size);
     }
 
     // Coordinates and promotion only: never retain mutable pieces from a board.
@@ -41,7 +43,7 @@ public class TranspositionTable {
     public void store(long hash, int depth, int score, int flag, int bestMove) {
         int i = index(hash);
         // Replace if deeper or different position
-        if (keys[i] == 0 || depth >= depths[i] || keys[i] != hash) {
+        if (depths[i] < 0 || depth >= depths[i] || keys[i] != hash) {
             keys[i] = hash;
             depths[i] = depth;
             scores[i] = score;
@@ -53,12 +55,12 @@ public class TranspositionTable {
     // A shallow entry can still provide useful ordering for a deeper search.
     public int getBestMove(long hash) {
         int i = index(hash);
-        return keys[i] == hash ? bestMoves[i] : NO_MOVE;
+        return depths[i] >= 0 && keys[i] == hash ? bestMoves[i] : NO_MOVE;
     }
 
     public int probe(long hash, int depth, int alpha, int beta) {
         int i = index(hash);
-        if (keys[i] != hash) return Integer.MIN_VALUE;
+        if (depths[i] < 0 || keys[i] != hash) return Integer.MIN_VALUE;
         if (depths[i] < depth) return Integer.MIN_VALUE;
 
         int score = scores[i];
@@ -73,6 +75,7 @@ public class TranspositionTable {
 
     public void clear() {
         java.util.Arrays.fill(keys, 0);
+        java.util.Arrays.fill(depths, -1);
         java.util.Arrays.fill(bestMoves, NO_MOVE);
     }
 }

@@ -2,6 +2,8 @@ package main;
 
 import Pieces.Piece;
 import Pieces.PieceType;
+import engine.AttackTables;
+import engine.BitBoard;
 
 import java.util.ArrayList;
 
@@ -42,45 +44,22 @@ public class Scanner {
     }
 
     public boolean insufficientMaterial() {
-        ArrayList<Piece> whitePieces = new ArrayList<>();
-        ArrayList<Piece> blackPieces = new ArrayList<>();
-
-        // Add all pieces to either sides list
+        int minors = 0;
+        int knights = 0;
+        int bishopColors = 0;
         for (Piece piece : board.pieceList) {
-            if (piece.color == 0) whitePieces.add(piece);
-            else blackPieces.add(piece);
-        }
-
-        int whiteAmount = whitePieces.size();
-        int blackAmount = blackPieces.size();
-        
-        if (whiteAmount == 1 && blackAmount == 1)
-            return true;
-
-        // Check for bishop vs king (both sides)
-        if (whiteAmount == 1 && blackAmount == 2) {
-            Piece otherPiece = findNonKingPiece(blackPieces);
-            if (otherPiece.type == PieceType.BISHOP || otherPiece.type == PieceType.KNIGHT)
-                return true;
-        }
-
-        if (whiteAmount == 2 && blackAmount == 1) {
-            Piece otherPiece = findNonKingPiece(whitePieces);
-            if (otherPiece.type == PieceType.BISHOP || otherPiece.type == PieceType.KNIGHT)
-                return true;
-        }
-
-        // King and Bishop vs King and Bishop (same colored bishops)
-        if (whiteAmount == 2 && blackAmount == 2) {
-            Piece whiteBishop = findPieceByType(whitePieces, PieceType.BISHOP);
-            Piece blackBishop = findPieceByType(blackPieces, PieceType.BISHOP);
-            if (whiteBishop != null && blackBishop != null) {
-                boolean whiteBishopLightSquared = (whiteBishop.col + whiteBishop.row) % 2 == 0;
-                boolean blackBishopLightSquared = (blackBishop.col + blackBishop.row) % 2 == 0;
-                return blackBishopLightSquared == whiteBishopLightSquared;
+            switch (piece.type) {
+                case PAWN, ROOK, QUEEN -> { return false; }
+                case KNIGHT -> { knights++; minors++; }
+                case BISHOP -> {
+                    minors++;
+                    bishopColors |= 1 << ((piece.col + piece.row) & 1);
+                }
+                default -> { }
             }
         }
-        return false;
+        // Any number of bishops confined to one square color cannot mate.
+        return minors <= 1 || (knights == 0 && bishopColors != 3);
     }
 
     public void enPassantPossible(Move move) {
@@ -91,7 +70,7 @@ public class Scanner {
 
     public boolean canCastleQueenSide(int color) {
         Piece king = findKing(color);
-        if (king == null || !(king.isFirstMove)) return false;
+        if (king == null || !king.isFirstMove || king.col != 4 || king.row != (color == 0 ? 7 : 0)) return false;
         if (isInCheck(king.col, king.row, color)) return false;
 
         Piece rook = board.getPiece(0,king.row);
@@ -108,7 +87,7 @@ public class Scanner {
 
     public boolean canCastleKingSide(int color) {
         Piece king = findKing(color);
-        if (king == null || !(king.isFirstMove)) return false;
+        if (king == null || !king.isFirstMove || king.col != 4 || king.row != (color == 0 ? 7 : 0)) return false;
         if (isInCheck(king.col, king.row, color)) return false;
 
         Piece rook = board.getPiece(7,king.row);
@@ -124,6 +103,8 @@ public class Scanner {
     }
 
     public boolean isValidMove(Move move) {
+        if (move.newCol < 0 || move.newCol >= 8 || move.newRow < 0 || move.newRow >= 8
+                || (move.capture != null && move.capture.type == PieceType.KING)) return false;
         if (board.checkTeam(move.piece, move.capture))
             return false;
         else if (!(move.piece.color == board.colorToMove))
@@ -155,66 +136,62 @@ public class Scanner {
     }
 
     public Piece findKing(int color) {
-        for (Piece piece : board.pieceList) {
-            if (piece.color == color && piece.type == PieceType.KING) {
-                return piece;
-            }
-        }
-        return null;
+        return board.king(color);
     }
 
     // Just checks if the king of given color is currently attacked
     public boolean isInCheck(int col, int row, int color) {
-        for (Piece piece : board.pieceList) {
-            if (piece.color != color) {
-                if (isSquareAttackedBy(piece, col, row)) {
-                    return true;
+        int square = row * 8 + col;
+        // Reverse pawn attacks identify the possible origins of enemy pawns.
+        long pawns = color == 0 ? AttackTables.whitePawnAttacks[square] : AttackTables.blackPawnAttacks[square];
+        if (hasAttacker(pawns, color, PieceType.PAWN)
+                || hasAttacker(AttackTables.knightAttacks[square], color, PieceType.KNIGHT)
+                || hasAttacker(AttackTables.kingAttacks[square], color, PieceType.KING)) return true;
+        for (int direction : AttackTables.QUEEN_DIRECTIONS) {
+            int previous = square;
+            for (int next = square + direction; next >= 0 && next < 64; next += direction) {
+                if (!BitBoard.isValidDirection(previous, next, direction)) break;
+                Piece piece = board.getPiece(next % 8, next / 8);
+                if (piece != null) {
+                    if (piece.color != color) {
+                        boolean straight = direction == 8 || direction == -8 || direction == 1 || direction == -1;
+                        if (piece.type == PieceType.QUEEN
+                                || piece.type == (straight ? PieceType.ROOK : PieceType.BISHOP)) return true;
+                    }
+                    break;
                 }
+                previous = next;
             }
         }
         return false;
     }
 
-    // Checks for whether a square is attacked by a specific piece
-    private boolean isSquareAttackedBy(Piece piece, int col, int row) {
-        int dCol = Math.abs(col - piece.col);
-        int dRow = Math.abs(row - piece.row);
-
-        return switch (piece.type) {
-            case PAWN -> row == piece.row + (piece.color == 0 ? -1 : 1) && dCol == 1;
-            case KNIGHT -> (dCol == 2 && dRow == 1) || (dCol == 1 && dRow == 2);
-            case KING -> dCol <= 1 && dRow <= 1;
-            case BISHOP -> dCol == dRow && !piece.checkForCollision(col, row);
-            case ROOK -> (piece.col == col || piece.row == row) && !piece.checkForCollision(col, row);
-            case QUEEN -> ((dCol == dRow) || (piece.col == col || piece.row == row))
-                    && !piece.checkForCollision(col, row);
-        };
+    private boolean hasAttacker(long mask, int color, PieceType type) {
+        while (mask != 0) {
+            int square = Long.numberOfTrailingZeros(mask);
+            mask &= mask - 1;
+            Piece piece = board.getPiece(square % 8, square / 8);
+            if (piece != null && piece.color != color && piece.type == type) return true;
+        }
+        return false;
     }
 
-    // schizo solutions but works
     public boolean wouldBeInCheck(Move move) {
-        int oldCol = move.piece.col;
-        int oldRow = move.piece.row;
         Piece capturedPiece = board.getPiece(move.newCol, move.newRow);
-
-        // For en passant, the captured pawn is not on the destination square
-        Piece epCaptured = null;
-        if (board.isEnPassant(move)) {
-            int squareDiff = move.piece.color == 0 ? 1 : -1;
-            epCaptured = board.getPiece(move.newCol, move.newRow + squareDiff);
-            if (epCaptured != null) board.removePiece(epCaptured);
+        boolean enPassant = board.isEnPassant(move);
+        Piece epCaptured = enPassant ? board.getPiece(move.newCol, move.row) : null;
+        board.setProbeSquare(move.col, move.row, null);
+        board.setProbeSquare(move.newCol, move.newRow, move.piece);
+        if (enPassant) board.setProbeSquare(move.newCol, move.row, null);
+        try {
+            Piece king = findKing(move.piece.color);
+            int col = move.piece.type == PieceType.KING ? move.newCol : king.col;
+            int row = move.piece.type == PieceType.KING ? move.newRow : king.row;
+            return isInCheck(col, row, move.piece.color);
+        } finally {
+            board.setProbeSquare(move.col, move.row, move.piece);
+            board.setProbeSquare(move.newCol, move.newRow, capturedPiece);
+            if (enPassant) board.setProbeSquare(move.newCol, move.row, epCaptured);
         }
-
-        if (capturedPiece != null) board.removePiece(capturedPiece);
-        board.movePiece(move.piece, move.newCol, move.newRow);
-
-        Piece king = findKing(move.piece.color);
-        boolean inCheck = isInCheck(king.col, king.row, king.color);
-
-        board.movePiece(move.piece, oldCol, oldRow);
-        if (capturedPiece != null) board.addPiece(capturedPiece);
-        if (epCaptured != null) board.addPiece(epCaptured);
-
-        return inCheck;
     }
 }

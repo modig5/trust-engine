@@ -16,6 +16,7 @@ public class Move {
     public boolean previousDrawByHalfMoveClock;
     public boolean previousThreefold;
     public long previousZobristHash;
+    public long previousRepetitionHash;
 
     public boolean wasCastling;
     public boolean wasEnPassant;

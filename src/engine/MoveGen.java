@@ -17,15 +17,23 @@ public class MoveGen {
 
     public ArrayList<Move> getAllValidMoves() {
         ArrayList<Move> validMoves = new ArrayList<>();
-        ArrayList<Piece> piecesCopy = new ArrayList<>(board.pieceList);
-
-        for (Piece piece : piecesCopy) {
+        for (Piece piece : board.pieceList) {
             if (piece == null || piece.color != board.colorToMove)
                 continue;
             generateMovesForPiece(piece, validMoves);
 
         }
         return validMoves;
+    }
+
+    public boolean hasLegalMove() {
+        ArrayList<Move> moves = new ArrayList<>();
+        for (Piece piece : board.pieceList) {
+            if (piece.color != board.colorToMove) continue;
+            generateMovesForPiece(piece, moves);
+            if (!moves.isEmpty()) return true;
+        }
+        return false;
     }
 
     public void generateMovesForPiece(Piece piece, ArrayList<Move> validMoves) {
@@ -42,8 +50,8 @@ public class MoveGen {
     }
 
     public void generatePawnMoves(Piece piece, int index, ArrayList<Move> validMoves) {
-        long attacks = (piece.color == 0) ? AttackTables.calculateWhitePawnAttacks(index)
-                                            : AttackTables.calculateBlackPawnAttacks(index);
+        long attacks = piece.color == 0 ? AttackTables.whitePawnAttacks[index]
+                                        : AttackTables.blackPawnAttacks[index];
         generateMovesFromBitBoard(piece, attacks, validMoves, true);
 
         // Forward push
@@ -66,12 +74,12 @@ public class MoveGen {
     }
 
     public void generateKnightMoves(Piece piece, int index, ArrayList<Move> validMoves) {
-        long attacks = AttackTables.calculateKnightAttacks(index);
+        long attacks = AttackTables.knightAttacks[index];
         generateMovesFromBitBoard(piece, attacks, validMoves, false);
     }
 
     public void generateKingMoves(Piece piece, int index, ArrayList<Move> validMoves) {
-        long attacks = AttackTables.calculateKingAttacks(index);
+        long attacks = AttackTables.kingAttacks[index];
         generateMovesFromBitBoard(piece, attacks, validMoves, false);
         
         // Add castling moves
@@ -93,17 +101,14 @@ public class MoveGen {
             Piece target = board.getPiece(nc, nr);
 
             if (capture) {
-                if (target != null && target.color != piece.color)
+                if (target != null && target.color != piece.color && target.type != PieceType.KING)
                     addMoveIfValid(piece, nc, nr, validMoves);
                 // En passant: check if target square is the capture square (one row past the enemy pawn)
-                else if (board.scanner.enPassantEnable && nc == board.scanner.enPassantCol) {
-                    int enPassantCaptureRow = (piece.color == 0) ? board.scanner.enPassantRow - 1 : board.scanner.enPassantRow + 1;
-                    if (nr == enPassantCaptureRow)
-                        addMoveIfValid(piece, nc, nr, validMoves);
-                }
+                else if (board.canEnPassant(piece, nc, nr))
+                    addMoveIfValid(piece, nc, nr, validMoves);
             } else {
                 // For knights/kings - empty squares OR captures
-                if (target == null || target.color != piece.color)
+                if (target == null || (target.color != piece.color && target.type != PieceType.KING))
                     addMoveIfValid(piece, nc, nr, validMoves);
             }
         }
@@ -127,7 +132,7 @@ public class MoveGen {
                     addMoveIfValid(piece, nc, nr, validMoves);
                 else {
                     // Break after finding blocking piece, only add if capture
-                    if (target.color != piece.color)
+                    if (target.color != piece.color && target.type != PieceType.KING)
                         addMoveIfValid(piece, nc, nr, validMoves);
                     break;
                 }
@@ -150,19 +155,21 @@ public class MoveGen {
         // Normal move (non-promotion)
         Move move = new Move(board, piece, col, row);
 
-        if (board.scanner.isValidMove(move)) {
+        // Movement geometry and occupancy were established by the generators.
+        if (!board.scanner.wouldBeInCheck(move)) {
             validMoves.add(move);
         }
     }
 
     // Generate 4 moves for each promotion piece
     private void addPromotionMoves(Piece piece, int col, int row, ArrayList<Move> validMoves) {
-        PieceType[] promotionPieces = {PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT};
+        Move queenMove = new Move(board, piece, col, row, PieceType.QUEEN);
+        if (board.scanner.wouldBeInCheck(queenMove)) return;
+        validMoves.add(queenMove);
+        PieceType[] promotionPieces = {PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT};
         for (PieceType promotionPiece : promotionPieces) {
             Move move = new Move(board, piece, col, row, promotionPiece);
-            if (board.scanner.isValidMove(move)) {
-                validMoves.add(move);
-            }
+            validMoves.add(move);
         }
         return;
     }

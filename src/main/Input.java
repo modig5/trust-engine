@@ -27,6 +27,7 @@ public class Input extends MouseAdapter implements KeyListener {
 
     private boolean inputLocked() {
         return board.threefold
+            || board.drawByHalfMoveClock
             || board.isAIThinking
             || board.colorToMove != board.humanColor
             || board.scanner.scanCheckMate(board.colorToMove)

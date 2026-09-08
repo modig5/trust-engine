@@ -75,7 +75,7 @@ public class AttackTables {
             int nr = row + dr[i];
             int nc = col + dc[i];
             int square = BitBoard.SquareToIndex(nr,nc);
-            if (BitBoard.isOnBoard(square))
+            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8)
                 attacks = BitBoard.setBit(attacks, square);
         }
         return attacks;
@@ -86,7 +86,7 @@ public class AttackTables {
         int row = BitBoard.getRow(index);
         int col = BitBoard.getCol(index);
 
-        if (row < 7) {
+        if (row > 0) {
             if (col > 0)
                 attacks = BitBoard.setBit(attacks, (row - 1) * 8 + (col - 1));
             if (col < 7)
@@ -100,7 +100,7 @@ public class AttackTables {
         int row = BitBoard.getRow(index);
         int col = BitBoard.getCol(index);
 
-        if (row > 0) {
+        if (row < 7) {
             if (col > 0)
                 attacks = BitBoard.setBit(attacks, (row + 1) * 8 + (col - 1));
             if (col < 7)

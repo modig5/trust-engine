@@ -33,16 +33,7 @@ public class Pawn extends Piece {
             squareDiff = 1;
 
         // En Passant logic
-        if (this.row == 3 && board.scanner.enPassantEnable && this.color == 0) {
-            if (newCol == board.scanner.enPassantCol && row == board.scanner.enPassantRow && newRow == this.row - 1 && Math.abs(newCol - col) == 1) {
-                return true;
-            }
-        }
-        if (this.row == 4 && board.scanner.enPassantEnable && this.color == 1) {
-            if (newCol == board.scanner.enPassantCol && row == board.scanner.enPassantRow && newRow == this.row + 1 && Math.abs(newCol - col) == 1) {
-                return true;
-            }
-        }
+        if (board.canEnPassant(this, newCol, newRow)) return true;
 
         // Push pawn 1 square
         if (newRow == row + squareDiff && newCol == this.col) {

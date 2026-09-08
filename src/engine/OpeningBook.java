@@ -142,7 +142,7 @@ public class OpeningBook {
         if (board.scanner.enPassantEnable) {
             int epFile = board.scanner.enPassantCol;
             // Black captures on row 4, white captures on row 3
-            int capturingRow = (board.colorToMove == 0) ? 4 : 3;
+            int capturingRow = (board.colorToMove == 0) ? 3 : 4;
             // Check if there's a pawn in position (adjacent cols) to capture en passant
             boolean canCaptureEP = false;
             for (int dc = -1; dc <= 1; dc += 2) {

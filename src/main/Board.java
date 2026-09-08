@@ -18,7 +18,9 @@ public class Board extends JPanel {
 
     private String cachedFen;
     private final Piece[] squares = new Piece[64];
+    private final Piece[] kings = new Piece[2];
     public long zobristHash;
+    public long repetitionHash;
 
     public ArrayList<Piece> pieceList = new ArrayList<>();
     public Piece selectedPiece;
@@ -59,7 +61,6 @@ public class Board extends JPanel {
     }
 
     public Board(String fullFEN) {
-        this.ai = new AI(this);
         String[] parts = fullFEN.split(" ");
 
         // Parse piece placement (field 1)
@@ -83,6 +84,7 @@ public class Board extends JPanel {
         if (parts.length > 4) {
             halfMoveCounter = Integer.parseInt(parts[4]);
         }
+        drawByHalfMoveClock = halfMoveCounter >= 100;
 
         // Parse full move number (field 6)
         if (parts.length > 5) {
@@ -93,7 +95,8 @@ public class Board extends JPanel {
         cachedFen = generateFEN(enPassantTarget, castlingRights);
 
         zobristHash = Zobrist.computeHash(this);
-        repetitionMap.put(zobristHash, 1);
+        repetitionHash = computeRepetitionHash();
+        repetitionMap.put(repetitionHash, 1);
 
         Input input = new Input(this);
         this.addMouseListener(input);
@@ -129,6 +132,7 @@ public class Board extends JPanel {
         this.scanner.enPassantRow = other.scanner.enPassantRow;
 
         this.zobristHash = other.zobristHash;
+        this.repetitionHash = other.repetitionHash;
     }
 
     public Piece getPiece(int col, int row) {
@@ -141,6 +145,7 @@ public class Board extends JPanel {
     void addPiece(Piece piece) {
         pieceList.add(piece);
         squares[piece.row * 8 + piece.col] = piece;
+        if (piece.type == PieceType.KING) kings[piece.color] = piece;
         zobristHash ^= Zobrist.pieceKey(piece.color, piece.type, piece.col, piece.row);
     }
 
@@ -148,6 +153,7 @@ public class Board extends JPanel {
         if (piece == null || !pieceList.remove(piece)) return;
         int square = piece.row * 8 + piece.col;
         if (squares[square] == piece) squares[square] = null;
+        if (piece.type == PieceType.KING) kings[piece.color] = null;
         zobristHash ^= Zobrist.pieceKey(piece.color, piece.type, piece.col, piece.row);
     }
 
@@ -158,6 +164,16 @@ public class Board extends JPanel {
         piece.row = row;
         squares[row * 8 + col] = piece;
         zobristHash ^= Zobrist.pieceKey(piece.color, piece.type, col, row);
+    }
+
+    Piece king(int color) {
+        return kings[color];
+    }
+
+    // Legality probes change occupancy only. Piece lists, coordinates, hashes,
+    // and cached FEN remain untouched and the caller restores these squares.
+    void setProbeSquare(int col, int row, Piece piece) {
+        squares[row * 8 + col] = piece;
     }
 
     /** Serialize the current position only when a caller needs FEN. */
@@ -263,11 +279,12 @@ public class Board extends JPanel {
     }
 
     public Move makeMove(Move move, boolean simulate) {
-        if (threefold)
+        if (threefold && !simulate)
             return null;
 
         Move undoInfo = undoInfoForMove(move);
         undoInfo.previousZobristHash = zobristHash;
+        undoInfo.previousRepetitionHash = repetitionHash;
         long previousStateHash = Zobrist.stateHash(this);
 
         // Only change moveHistory on actual moves
@@ -288,18 +305,19 @@ public class Board extends JPanel {
         updateHalfMoveCounter(move);
         handleFirstMove(move.piece);
         executeMove(move);
-        handleSpecialMoves(move, simulate);
+        handleSpecialMoves(move, simulate, undoInfo.wasEnPassant);
         capture(move);
 
-        selectedPiece = null;
+        if (!simulate) selectedPiece = null;
 
         colorToMove = colorToMove ^ 1;
         if (colorToMove == 0) fullMoveNumber++;
 
         zobristHash ^= previousStateHash ^ Zobrist.stateHash(this);
+        repetitionHash = computeRepetitionHash();
         cachedFen = null;
-        int count = repetitionMap.getOrDefault(zobristHash, 0) + 1;
-        repetitionMap.put(zobristHash, count);
+        int count = repetitionMap.getOrDefault(repetitionHash, 0) + 1;
+        repetitionMap.put(repetitionHash, count);
         if (!simulate && count >= 3) threefold = true;
 
         if (!isAIThinking && !simulate)
@@ -363,7 +381,7 @@ public class Board extends JPanel {
 
     public void undoMove(Move undoInfo) {
         // Roll back repetition count for the position produced by this move
-        long repetitionKeyToDecrement = zobristHash;
+        long repetitionKeyToDecrement = repetitionHash;
         int count = repetitionMap.getOrDefault(repetitionKeyToDecrement, 0);
         if (count > 1) {
             repetitionMap.put(repetitionKeyToDecrement, count - 1);
@@ -402,6 +420,7 @@ public class Board extends JPanel {
         drawByHalfMoveClock = undoInfo.previousDrawByHalfMoveClock;
         threefold = undoInfo.previousThreefold;
         zobristHash = undoInfo.previousZobristHash;
+        repetitionHash = undoInfo.previousRepetitionHash;
     }
 
     public void undoPromotion(Move move) {
@@ -441,7 +460,9 @@ public class Board extends JPanel {
     }
 
     public void aiMove(Move lastPlayerMove) {
-        if (colorToMove == aiColor && !(scanner.scanCheckMate(aiColor)) && !(scanner.insufficientMaterial() && !(drawByHalfMoveClock))) {
+        if (colorToMove == aiColor && !threefold && !drawByHalfMoveClock
+                && !scanner.scanCheckMate(aiColor) && !scanner.insufficientMaterial()) {
+            if (ai == null) ai = new AI(this);
             isAIThinking = true;
 
             // Check for ponder hit
@@ -482,6 +503,10 @@ public class Board extends JPanel {
     }
 
     public void handleSpecialMoves(Move move, boolean simulate) {
+        handleSpecialMoves(move, simulate, isEnPassant(move));
+    }
+
+    private void handleSpecialMoves(Move move, boolean simulate, boolean enPassantCapture) {
         // Castling
         if (move.piece.type == PieceType.KING && Math.abs(move.col - move.newCol) == 2) {
             castling(move);
@@ -489,7 +514,7 @@ public class Board extends JPanel {
             return;
         }
 
-        if (isEnPassant(move)) {
+        if (enPassantCapture) {
             enPassant(move);
             scanner.enPassantEnable = false;
         }
@@ -507,17 +532,33 @@ public class Board extends JPanel {
     }
 
     public boolean isEnPassant(Move move) {
-        if (!scanner.enPassantEnable) return false;
-        if (move.piece.type != PieceType.PAWN) return false;
-        if (Math.abs(move.col - move.newCol) != 1) return false;
-        if (move.newCol != scanner.enPassantCol) return false;
+        return canEnPassant(move.piece, move.newCol, move.newRow);
+    }
 
-        // White pawn on rank 3 capturing to rank 2, or black pawn on rank 4 capturing to rank 5
-        if (move.piece.color == 0) {
-            return move.row == 3 && move.newRow == 2;
-        } else {
-            return move.row == 4 && move.newRow == 5;
+    public boolean canEnPassant(Piece piece, int col, int row) {
+        if (!scanner.enPassantEnable || piece.type != PieceType.PAWN) return false;
+        int pawnRow = piece.color == 0 ? 3 : 4;
+        int direction = piece.color == 0 ? -1 : 1;
+        if (piece.row != pawnRow || scanner.enPassantRow != pawnRow
+                || row != pawnRow + direction || col != scanner.enPassantCol
+                || Math.abs(piece.col - col) != 1 || getPiece(col, row) != null) return false;
+        Piece captured = getPiece(col, pawnRow);
+        return captured != null && captured.type == PieceType.PAWN && captured.color != piece.color;
+    }
+
+    // FEN and the TT retain the raw EP target; repetition depends on legal moves.
+    private long computeRepetitionHash() {
+        if (!scanner.enPassantEnable) return zobristHash;
+        int row = colorToMove == 0 ? 3 : 4;
+        int targetRow = colorToMove == 0 ? 2 : 5;
+        for (int delta = -1; delta <= 1; delta += 2) {
+            Piece pawn = getPiece(scanner.enPassantCol + delta, row);
+            if (pawn != null && pawn.color == colorToMove
+                    && canEnPassant(pawn, scanner.enPassantCol, targetRow)
+                    && !scanner.wouldBeInCheck(new Move(this, pawn, scanner.enPassantCol, targetRow)))
+                return zobristHash;
         }
+        return zobristHash ^ Zobrist.enPassantKey(scanner.enPassantCol);
     }
 
     public boolean isPawnPromotion(Move move) {
@@ -588,6 +629,7 @@ public class Board extends JPanel {
     public void addPieces(String FEN) {
         pieceList.clear();
         java.util.Arrays.fill(squares, null);
+        java.util.Arrays.fill(kings, null);
         zobristHash = 0;
         cachedFen = null;
         int row = 0;
@@ -664,8 +706,10 @@ public class Board extends JPanel {
 
     public void undoLastMove() {
         if (moveHistoryIndex < 0) return;
-        ai.stopPonder();
-        ai.clearPonderState();
+        if (ai != null) {
+            ai.stopPonder();
+            ai.clearPonderState();
+        }
         undoMove(moveHistory.get(moveHistoryIndex));
         moveHistoryIndex--;
         repaint();
@@ -676,7 +720,7 @@ public class Board extends JPanel {
         Move move = originalMoves.get(moveHistoryIndex + 1);
         // Use simulate=true so it doesn't re-add to history
         makeMove(move, true);
-        threefold = repetitionMap.getOrDefault(zobristHash, 0) >= 3;
+        threefold = repetitionMap.getOrDefault(repetitionHash, 0) >= 3;
         // Because of simulate we need to update visuals manually
         lastSquareMoveFrom = move.col + move.row * MAX_COLS;
         lastSquareMoveTo = move.newCol + move.newRow * MAX_COLS;
