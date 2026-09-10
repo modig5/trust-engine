@@ -59,7 +59,7 @@ public class OpeningBook {
             catch (IOException e) {
                 throw new RuntimeException("Failed to load opening book: " + path, e);
             }
-        System.out.println("Opening book loaded: " + dictionary.size() + " positions");
+        System.err.println("Opening book loaded: " + dictionary.size() + " positions");
       }
 
     public Move decodeMove(int polyMove) {

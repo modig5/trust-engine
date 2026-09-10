@@ -128,6 +128,23 @@ public class AI {
         this.book = null;
     }
 
+    public static AI forSearch(Board board) {
+        return new AI(board, true);
+    }
+
+    /** Clear game-specific search memory after the controller has stopped its worker. */
+    public void resetSearchState() {
+        if (!searching.compareAndSet(false, true))
+            throw new IllegalStateException("Stop search before resetting it");
+        try {
+            tt.clear();
+            for (Move[] slot : killerMoves) { slot[0] = null; slot[1] = null; }
+            completedDepth = 0;
+        } finally {
+            searching.set(false);
+        }
+    }
+
     public int negaMax(int maxDepth, int alpha, int beta) {
         if (shouldStop()) return 0;
         // Early termination checks

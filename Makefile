@@ -20,7 +20,7 @@ PROFILE_WARMUPS ?= 2
 
 JAVA_SOURCES := $(shell find $(SRC_DIR) -name '*.java')
 
-.PHONY: all compile jar run run-jar perft profile clean help
+.PHONY: all compile jar run run-jar uci uci-jar perft profile clean help
 
 all: jar
 
@@ -45,6 +45,14 @@ run: compile
 run-jar: jar
 	$(JAVA) -jar "$(JAR)"
 
+# Keep build messages off the protocol's stdout, even when launched by a GUI.
+uci:
+	@$(MAKE) --no-print-directory compile >&2
+	@$(JAVA) -Djava.awt.headless=true -cp "$(CLASSES_DIR)" uci.UciMain
+
+uci-jar: compile
+	$(JAR_TOOL) --create --file "$(JAR_DIR)/$(APP_NAME)-uci.jar" --main-class uci.UciMain -C "$(CLASSES_DIR)" .
+
 perft: compile
 	$(JAVA) -cp "$(CLASSES_DIR)" tests.Perft
 
@@ -62,6 +70,8 @@ help:
 		"  make jar        Build runnable jar at $(JAR)" \
 		"  make run        Run from class files" \
 		"  make run-jar    Run the jar" \
+		"  make uci        Run the headless UCI engine" \
+		"  make uci-jar    Build $(JAR_DIR)/$(APP_NAME)-uci.jar" \
 		"  make perft      Run perft tests" \
 		"  make profile    Profile search CPU, allocations and GC with JFR" \
 		"  make clean      Remove build output" \
