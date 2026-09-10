@@ -10,7 +10,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class AI {
-    public int maxDepth = 6;
+    public int maxDepth = 7;
+    // Optional fixed budget for GUI moves; -1 keeps depth-only play.
+    public long moveTimeMillis = -1;
     Board board;
     private MoveGen moveGenerator;
     private final OpeningBook book;
@@ -31,10 +33,15 @@ public class AI {
 
     // Pondering state
     private Thread ponderThread;
-    private AI ponderAIRef;
     public Move ponderMove;
     private Move ponderBestMove;
-    private final AtomicBoolean stopRequested = new AtomicBoolean(false);
+    private final AtomicBoolean searching = new AtomicBoolean(false);
+    private volatile SearchRequest activeSearch;
+    private SearchRequest ponderRequest;
+    private long searchStartedNanos;
+    private long searchBudgetNanos;
+    private volatile int completedDepth;
+
     private final AtomicBoolean pondering = new AtomicBoolean(false);
 
     private static final int[][] PAWN_TABLE = {
@@ -122,7 +129,7 @@ public class AI {
     }
 
     public int negaMax(int maxDepth, int alpha, int beta) {
-        if (stopRequested.get()) return 0;
+        if (shouldStop()) return 0;
         // Early termination checks
         if (board.scanner.insufficientMaterial()) return 0;
         if (board.repetitionMap.getOrDefault(board.repetitionHash, 0) >= 3)
@@ -158,9 +165,13 @@ public class AI {
 
         for (Move move : moves) {
             Move undoInfo = board.makeMove(move, true);
-            int eval = -negaMax(maxDepth - 1, -beta, -alpha);
-            board.undoMove(undoInfo);
-            if (stopRequested.get()) return 0;
+            int eval;
+            try {
+                eval = -negaMax(maxDepth - 1, -beta, -alpha);
+            } finally {
+                board.undoMove(undoInfo);
+            }
+            if (shouldStop()) return 0;
 
             if (eval > bestScore) {
                 bestScore = eval;
@@ -328,9 +339,8 @@ public class AI {
             }
         }
 
-        long startTime = System.currentTimeMillis();
-        Move bestMove = search(board);
-        long elapsed = System.currentTimeMillis() - startTime;
+        Move bestMove = search(board, moveTimeMillis < 0 ? SearchRequest.depth(maxDepth)
+                : SearchRequest.fixedTime(maxDepth, moveTimeMillis));
 
         if (bestMove != null) {
             board.makeMove(bestMove, false);
@@ -344,48 +354,97 @@ public class AI {
         }
     }
 
-    // Core search: iterative deepening negamax on the given board
+    // Profiling and existing callers retain depth-only search.
     Move search(Board searchBoard) {
+        return search(searchBoard, SearchRequest.depth(maxDepth));
+    }
+
+    // Search synchronously without playing a move. The caller owns the board until return
+    public Move search(Board searchBoard, SearchRequest request) {
+        java.util.Objects.requireNonNull(searchBoard);
+        java.util.Objects.requireNonNull(request);
+        if (!searching.compareAndSet(false, true))
+            throw new IllegalStateException("An AI instance can run only one search at a time");
         Board originalBoard = this.board;
         MoveGen originalMoveGen = this.moveGenerator;
+        try {
+            request.begin();
+            searchStartedNanos = nanoTime();
+            searchBudgetNanos = request.budgetNanos();
+            activeSearch = request;
+            completedDepth = 0;
+            this.board = searchBoard;
+            this.moveGenerator = new MoveGen(searchBoard);
+            for (Move[] slot : killerMoves) { slot[0] = null; slot[1] = null; }
 
-        this.board = searchBoard;
-        this.moveGenerator = new MoveGen(searchBoard);
+            ArrayList<Move> validMoves = getAllValidMoves();
+            if (validMoves.isEmpty()) return null;
+            // Even an immediate stop/zero budget must return a legal move.
+            Move bestMove = validMoves.get(0);
 
-        stopRequested.set(false);
-        for (Move[] slot : killerMoves) { slot[0] = null; slot[1] = null; }
-        Move bestMove = null;
+            for (int d = 1; d <= request.maxDepth && !shouldStop(); d++) {
+                Move iterationBestMove = null;
+                int iterationScore = Integer.MIN_VALUE;
+                int rootAlpha = -Integer.MAX_VALUE;
+                bestMoveToFront(bestMove, validMoves);
 
-        ArrayList<Move> validMoves = getAllValidMoves();
-
-        for (int d = 1; d <= maxDepth; d++) {
-            Move iterationBestMove = null;
-            int iterationScore = Integer.MIN_VALUE;
-            int rootAlpha = -Integer.MAX_VALUE;
-
-            bestMoveToFront(bestMove, validMoves);
-
-            for (Move move : validMoves) {
-                Move undoInfo = searchBoard.makeMove(move, true);
-                int score = -negaMax(d - 1, -Integer.MAX_VALUE, -rootAlpha);
-                if (score > iterationScore) {
-                    iterationScore = score;
-                    iterationBestMove = move;
+                for (Move move : validMoves) {
+                    if (shouldStop()) break;
+                    Move undoInfo = searchBoard.makeMove(move, true);
+                    int score;
+                    try {
+                        score = -negaMax(d - 1, -Integer.MAX_VALUE, -rootAlpha);
+                    } finally {
+                        searchBoard.undoMove(undoInfo);
+                    }
+                    if (shouldStop()) break;
+                    if (score > iterationScore) {
+                        iterationScore = score;
+                        iterationBestMove = move;
+                    }
+                    rootAlpha = Math.max(rootAlpha, score);
                 }
-                rootAlpha = Math.max(rootAlpha, score);
-                searchBoard.undoMove(undoInfo);
 
-                if (stopRequested.get()) break;
+                // Never publish a score/move from an interrupted iteration.
+                if (shouldStop()) break;
+                bestMove = iterationBestMove;
+                completedDepth = d;
             }
-
-            if (stopRequested.get()) break;
-            bestMove = iterationBestMove;
+            return bestMove;
+        } finally {
+            this.board = originalBoard;
+            this.moveGenerator = originalMoveGen;
+            activeSearch = null;
+            searching.set(false);
         }
+    }
 
-        this.board = originalBoard;
-        this.moveGenerator = originalMoveGen;
+    public int getCompletedDepth() {
+        return completedDepth;
+    }
 
-        return bestMove;
+    // Stop an active search. Use request.stop() to also cover a not-yet-started worker
+    public void stopSearch() {
+        SearchRequest request = activeSearch;
+        if (request != null) request.stop();
+    }
+
+    // Overridable for deterministic deadline tests, production uses a monotonic clock.
+    protected long nanoTime() {
+        return System.nanoTime();
+    }
+
+    private boolean shouldStop() {
+        SearchRequest request = activeSearch;
+        boolean interrupted = Thread.currentThread().isInterrupted();
+        if (request == null) return interrupted;
+        if (request.isStopped()) return true;
+        if (interrupted || (request.moveTimeMillis >= 0
+                && nanoTime() - searchStartedNanos >= searchBudgetNanos)) {
+            request.stop();
+            return true;
+        }
+        return false;
     }
 
     private Move findPonderMove() {
@@ -435,14 +494,15 @@ public class AI {
         // Create a separate AI for the ponder thread to avoid shared state
         AI ponderAI = new AI(ponderBoard, true);
         ponderAI.maxDepth = this.maxDepth;
-        this.ponderAIRef = ponderAI;
+        SearchRequest request = SearchRequest.depth(ponderAI.maxDepth);
+        this.ponderRequest = request;
 
         pondering.set(true);
         ponderBestMove = null;
 
         ponderThread = new Thread(() -> {
-            Move result = ponderAI.search(ponderBoard);
-            if (!ponderAI.stopRequested.get()) {
+            Move result = ponderAI.search(ponderBoard, request);
+            if (!request.isStopped()) {
                 ponderBestMove = result;
             }
             pondering.set(false);
@@ -454,9 +514,7 @@ public class AI {
     // Stop the ponder search and wait for the thread to finish
     public void stopPonder() {
         if (ponderThread != null && ponderThread.isAlive()) {
-            if (ponderAIRef != null) {
-                ponderAIRef.stopRequested.set(true);
-            }
+            if (ponderRequest != null) ponderRequest.stop();
             try {
                 ponderThread.join();
             } catch (InterruptedException e) {
@@ -464,7 +522,7 @@ public class AI {
             }
         }
         pondering.set(false);
-        ponderAIRef = null;
+        ponderRequest = null;
     }
 
     // Check if the opponent played the move we predicted
